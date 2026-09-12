@@ -87,6 +87,61 @@ Every limit is configurable, and every finding explains why it matters and how t
 
 ---
 
+## Silencing a finding
+
+When a rule is wrong about your code, say so in the code itself:
+
+```python
+# kasauti-disable-next-line CQ001
+def deliberately_complex(state):
+    ...
+```
+
+`kasauti-disable-line` and `kasauti-disable-file` also work, and the rule ids
+are optional — leave them off to silence every rule on that line. A suppressed
+finding costs no technical debt, so your grade reflects the decision you made.
+The lightbulb on any KASAUTI diagnostic will write the comment for you in the
+right syntax for the language.
+
+## Project configuration
+
+Run **KASAUTI: Create Project Configuration File**, or write `.kasauti.toml`
+in the workspace root:
+
+```toml
+[thresholds]
+cyclomatic = 10
+functionLength = 50
+lineLength = 120
+
+exclude = ["**/generated/**"]
+
+# The CI gate is OFF unless this block exists.
+# [gate]
+# minGrade = "C"
+# maxDebtRatio = 20.0
+# failOn = ["CQ001"]
+```
+
+Commit it and everyone on the team grades the same way. The same settings can
+live under a `kasauti` key in `package.json` instead. A VS Code setting you
+explicitly changed still wins over the file; a setting left at its default does
+not, so committing a config actually has an effect.
+
+## Running in CI
+
+```bash
+npx kasauti scan .                    # report only, always exits 0
+npx kasauti scan . --format sarif     # upload to GitHub code scanning
+npx kasauti scan . --min-grade C      # exits 1 below grade C
+```
+
+The gate stays off until you add a `[gate]` block or pass `--min-grade`. This
+is deliberate: installing a quality tool should never break a build you did not
+ask it to judge. The CLI uses the same engine as the editor, and a test asserts
+the two produce the same grade for the same code.
+
+
 ## Settings
 
 The ones worth knowing:

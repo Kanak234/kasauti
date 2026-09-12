@@ -27,7 +27,7 @@ const GENERATED_PATH = /(\.min\.(js|css)$)|(\.pb\.go$)|(_pb2(_grpc)?\.py$)|(\.g\
 export function skipped(languageKey: string, reason: string, lines = 0): FileAnalysis {
   return {
     engineVersion: ENGINE_VERSION, languageKey, tier: 3, skipReason: reason,
-    lines, sloc: 0, commentLines: 0, functions: [], classes: [], todos: [], lineLengths: new Uint32Array(0),
+    lines, sloc: 0, commentLines: 0, functions: [], classes: [], todos: [], suppressions: [], lineLengths: new Uint32Array(0),
     hasSyntaxErrors: false, tokenIds: new Uint32Array(0), tokenLines: new Uint32Array(0), analysisMs: 0,
   };
 }
@@ -100,7 +100,7 @@ export async function analyze(parser: ParserService, languageKey: string, filePa
         const result: FileAnalysis = {
           engineVersion: ENGINE_VERSION, languageKey, tier: 1 as Tier,
           lines, sloc: m.sloc, commentLines: m.commentLines,
-          functions: m.functions, classes: m.classes, todos: m.todos,
+          functions: m.functions, classes: m.classes, todos: m.todos, suppressions: m.suppressions,
           lineLengths: Uint32Array.from(source.split(/\r?\n/), (l) => l.length),
           hasSyntaxErrors: tree.rootNode.hasError,
           tokenIds: m.tokenIds, tokenLines: m.tokenLines,
@@ -135,7 +135,7 @@ export async function analyze(parser: ParserService, languageKey: string, filePa
   return {
     engineVersion: ENGINE_VERSION, languageKey, tier: 2,
     lines: g.lines, sloc: g.sloc, commentLines: g.commentLines,
-    functions: [], classes: [], todos: g.todos, lineLengths: g.lineLengths,
+    functions: [], classes: [], todos: g.todos, suppressions: g.suppressions, lineLengths: g.lineLengths,
     indentNesting: g.indentNesting, hasSyntaxErrors: false,
     tokenIds: g.tokenIds, tokenLines: g.tokenLines,
     analysisMs: Date.now() - t0, fallbackNote,

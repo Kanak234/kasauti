@@ -1,6 +1,6 @@
 // Minimal stand-in for the VS Code API: enough to activate the packaged
 // extension.js and assert that it registers what package.json promises.
-const rec = { commands: [], trees: [], webviewViews: [], codeLens: 0, disposables: 0, diagnostics: 0, statusBars: 0, subscriptions: [] };
+const rec = { commands: [], trees: [], webviewViews: [], codeLens: 0, codeActions: 0, disposables: 0, diagnostics: 0, statusBars: 0, subscriptions: [] };
 const D = (extra = {}) => ({ dispose() { rec.disposables++; }, ...extra });
 const EV = () => { const ls = []; const f = (cb) => { ls.push(cb); return D(); }; f.fire = (x) => ls.forEach((l) => l(x)); return f; };
 class EventEmitter { constructor() { this.event = EV(); } fire(x) { this.event.fire(x); } dispose() {} }
@@ -16,6 +16,16 @@ class Range { constructor(a, b, c, d) { this.start = a instanceof Position ? a :
 class ThemeIcon { constructor(id, color) { this.id = id; } static File = new ThemeIcon('file'); }
 class MarkdownString { constructor() { this.value = ''; } appendMarkdown(s) { this.value += s; return this; } }
 class Diagnostic { constructor(r, m, s) { Object.assign(this, { range: r, message: m, severity: s }); } }
+class CodeAction {
+  constructor(title, kind) { this.title = title; this.kind = kind; }
+}
+class WorkspaceEdit {
+  constructor() { this.edits = []; }
+  insert(uri, pos, text) { this.edits.push({ op: 'insert', uri, pos, text }); }
+  delete(uri, range) { this.edits.push({ op: 'delete', uri, range }); }
+  replace(uri, range, text) { this.edits.push({ op: 'replace', uri, range, text }); }
+}
+
 module.exports = {
   Uri, Position, Range, ThemeIcon, MarkdownString, Diagnostic, EventEmitter,
   ThemeColor: class { constructor(id) { this.id = id; } },
@@ -28,9 +38,14 @@ module.exports = {
   RelativePattern: class { constructor(b, p) { this.base = b; this.pattern = p; } },
   CancellationTokenSource: class { constructor() { this.token = { isCancellationRequested: false, onCancellationRequested: EV() }; } cancel() { this.token.isCancellationRequested = true; } dispose() {} },
   commands: { registerCommand: (id) => { rec.commands.push(id); return D(); }, executeCommand: async () => {} },
+  CodeAction,
+  WorkspaceEdit,
+  CodeActionKind: { QuickFix: 'quickfix' },
   languages: {
     createDiagnosticCollection: () => { rec.diagnostics++; return { set() {}, delete() {}, clear() {}, dispose() {} }; },
     registerCodeLensProvider: (_s, p) => { rec.codeLens++; rec.codeLensProvider = p; return D(); },
+    // v0.2.0 F4: Quick Fixes.
+    registerCodeActionsProvider: (_s, p) => { rec.codeActions++; rec.codeActionProvider = p; return D(); },
   },
   window: {
     createOutputChannel: () => ({ appendLine() {}, show() {}, dispose() {} }),
@@ -46,7 +61,9 @@ module.exports = {
   },
   workspace: {
     workspaceFolders: undefined, name: undefined, textDocuments: [],
-    getConfiguration: () => ({ get: (_k, d) => d }),
+    // inspect() reports where a setting came from; the stub sets nothing, so
+    // every level is undefined — exactly the "user never touched it" case.
+    getConfiguration: () => ({ get: (_k, d) => d, inspect: () => ({ defaultValue: undefined, globalValue: undefined, workspaceValue: undefined, workspaceFolderValue: undefined }) }),
     asRelativePath: (u) => String(u.path || u).replace(/^\/+/, ''),
     getWorkspaceFolder: () => undefined,
     findFiles: async () => [],

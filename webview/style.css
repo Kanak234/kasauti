@@ -213,3 +213,45 @@ body.cb .sev.critical { background: #d55e00; } body.cb .sev.major { background: 
 @media (prefers-reduced-motion: reduce) {
   .progress i, .scanbar i { transition: none; }
 }
+
+
+/* ---- v0.2.0 F7: filter box -------------------------------------------------
+ * Sized to fit the toolbar without pushing the buttons off on a narrow panel.
+ * -------------------------------------------------------------------------- */
+.toolbar .filter {
+  flex: 0 1 250px;
+  min-width: 110px;
+  padding: 3px 7px;
+  border-radius: 3px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: 12px;
+}
+.toolbar .filter:focus { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
+.toolbar .filter-count { font-size: 11px; opacity: .7; white-space: nowrap; }
+
+
+/* ---- v0.2.0 F6: trend sparkline ------------------------------------------ */
+.trend .spark { width: 100%; height: 40px; display: block; margin: 2px 0 4px; overflow: visible; }
+.spark-line { fill: none; stroke: var(--vscode-charts-blue, #4aa3df); stroke-width: 1.5;
+              stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.spark-fill { fill: var(--vscode-charts-blue, #4aa3df); opacity: .12; }
+.spark-dot  { fill: var(--vscode-charts-blue, #4aa3df); }
+.note.warn  { background: var(--vscode-inputValidation-warningBackground);
+              border: 1px solid var(--vscode-inputValidation-warningBorder);
+              padding: 5px 7px; border-radius: 3px; }
+
+
+/* ---- v0.2.0 F7: folder chips --------------------------------------------- */
+.toolbar .folders { display: flex; gap: 4px; flex: 0 1 auto; overflow-x: auto;
+                    max-width: 40%; scrollbar-width: thin; }
+.toolbar .chip { font-size: 11px; padding: 2px 7px; border-radius: 9px; white-space: nowrap;
+                 border: 1px solid var(--vscode-contrastBorder, transparent);
+                 background: var(--vscode-badge-background); color: var(--vscode-badge-foreground);
+                 cursor: pointer; }
+.toolbar .chip.off { background: transparent; color: var(--vscode-descriptionForeground);
+                     border-color: var(--vscode-input-border, var(--vscode-descriptionForeground));
+                     text-decoration: line-through; }
+.toolbar .chip:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }

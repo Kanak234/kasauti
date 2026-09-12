@@ -48,6 +48,11 @@ await Promise.all([
     platform: 'node', format: 'cjs', target: 'node18', external: ['vscode'] }),
   esbuild.build({ ...common, entryPoints: ['src/engine/worker.ts'], outfile: 'dist/worker.js',
     platform: 'node', format: 'cjs', target: 'node18' }),
+  // v0.2.0 F5: the headless CLI. No `vscode` import anywhere in its chain —
+  // if one ever creeps in, this build fails, which is the point.
+  esbuild.build({ ...common, entryPoints: ['src/cli.ts'], outfile: 'dist/cli.js',
+    platform: 'node', format: 'cjs', target: 'node18',
+    banner: { js: '#!/usr/bin/env node' } }),
   esbuild.build({ ...common, entryPoints: ['webview/main.ts'], outfile: 'dist/webview.js',
     platform: 'browser', format: 'iife', target: 'es2020' }),
   // Sidebar gets its own tiny bundle: no Three.js, so it opens instantly.

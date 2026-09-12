@@ -10,6 +10,8 @@
  *        findings into `ScoreResult`  ->  views render everything.
  * ========================================================================== */
 
+import type { Suppression } from './suppress';
+
 /** Analysis depth of a file. See SPEC §A7.2. */
 export type Tier = 1 | 2 | 3;
 //  1 = full AST analysis (tree-sitter grammar available)
@@ -91,6 +93,8 @@ export interface FileAnalysis {
   analysisMs: number;
   /** Set when a grammar existed but failed; file fell back to tier 2. */
   fallbackNote?: string;
+  /** v0.2.0: `kasauti-disable-*` directives found in comments (F4 R4.5). */
+  suppressions: Suppression[];
 }
 
 /** One problem the user can act on. Created by rules.ts (and duplication). */

@@ -12,6 +12,7 @@
  * ========================================================================== */
 
 import { fnv1a } from './metrics';
+import { parseDirectives, Suppression } from './suppress';
 import type { TodoMarker } from './types';
 
 /* A deliberately simple tokenizer: identifiers, numbers, quoted strings, and
@@ -28,6 +29,7 @@ export function analyzeTier2(text: string, commentPrefixes: string[], languageKe
   const lines = text.split(/\r?\n/);
   const lineLengths = Uint32Array.from(lines, (l) => l.length);
   const todos: TodoMarker[] = [];
+  const suppressions: Suppression[] = [];
   const ids: number[] = [];
   const tokLines: number[] = [];
   let sloc = 0, commentLines = 0;
@@ -43,7 +45,7 @@ export function analyzeTier2(text: string, commentPrefixes: string[], languageKe
     if (!trimmed) continue;                                   // blank line
     const todo = TODO_RE.exec(raw);
     if (todo) todos.push({ line: i, col: todo.index, text: (todo[1] + ' ' + todo[2]).trim().slice(0, 120) });
-    if (commentPrefixes.some((p) => trimmed.startsWith(p))) { commentLines++; continue; }
+    if (commentPrefixes.some((p) => trimmed.startsWith(p))) { commentLines++; suppressions.push(...parseDirectives(raw, i)); continue; }
     sloc++;
 
     // Leading whitespace width (tab = 4 columns).
@@ -76,7 +78,7 @@ export function analyzeTier2(text: string, commentPrefixes: string[], languageKe
   }
 
   return {
-    lines: lines.length, sloc, commentLines, todos, lineLengths, indentNesting,
+    lines: lines.length, sloc, commentLines, todos, suppressions, lineLengths, indentNesting,
     tokenIds: Uint32Array.from(ids), tokenLines: Uint32Array.from(tokLines),
   };
 }

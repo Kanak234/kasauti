@@ -14,6 +14,7 @@
  * ========================================================================== */
 
 import { SyntaxNode, Role, getSpec, roleOf } from './languages';
+import { parseDirectives, Suppression } from './suppress';
 import type { ClassMetrics, FunctionMetrics, Halstead, TodoMarker } from './types';
 
 type Spec = NonNullable<ReturnType<typeof getSpec>>;
@@ -82,6 +83,7 @@ function tokenPass(cursor: CursorLike, lineCount: number) {
   const codeRows = new Uint8Array(lineCount);      // 1 = row has real code
   const commentRows = new Uint8Array(lineCount);   // 1 = row has a comment
   const todos: TodoMarker[] = [];
+  const suppressions: Suppression[] = [];
 
   // Iterative depth-first traversal: down, then right, then up-and-right.
   let descend = true;
@@ -93,6 +95,7 @@ function tokenPass(cursor: CursorLike, lineCount: number) {
         const s = cursor.startPosition.row, e = cursor.endPosition.row;
         for (let r = s; r <= e && r < lineCount; r++) commentRows[r] = 1;
         const text = cursor.currentNode.text;
+        suppressions.push(...parseDirectives(text, s));
         const lines = text.split('\n');
         for (let i = 0; i < lines.length; i++) {
           const m = TODO_RE.exec(lines[i]);
@@ -125,7 +128,7 @@ function tokenPass(cursor: CursorLike, lineCount: number) {
     if (codeRows[r]) sloc++;
     else if (commentRows[r]) commentOnly++;
   }
-  return { tokens, codeRows, sloc, commentLines: commentOnly, todos };
+  return { tokens, codeRows, sloc, commentLines: commentOnly, todos, suppressions };
 }
 
 /* -----------------------------------------------------------------------------
@@ -468,6 +471,7 @@ export function analyzeTier1(root: SyntaxNode, cursor: CursorLike, specKey: stri
   return {
     functions, classes: classMetrics,
     sloc: tp.sloc, commentLines: tp.commentLines, todos: tp.todos,
+    suppressions: tp.suppressions,
     tokenIds, tokenLines,
   };
 }

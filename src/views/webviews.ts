@@ -20,6 +20,9 @@ import type { HostMessage, WebviewMessage } from '../protocol';
 import type { ResultStore } from '../store';
 
 export interface WebviewHost {
+  /** v0.2.0 F6/F5: trend samples and threshold provenance for the Overview. */
+  historySeries(): Array<{ t: number; score: number; grade: import('../engine/types').Grade }>;
+  thresholdProvenance(): { sources: Record<string, string>; file: string; problems: string[] };
   store: ResultStore;
   isScanned(): boolean;
   scanProgress(): { done: number; total: number } | undefined;
@@ -100,6 +103,21 @@ export class OverviewView implements vscode.WebviewViewProvider, vscode.Disposab
   private post(initial: boolean): void {
     if (!this.view) return;
     const s = summary(this.host.store, this.host.isScanned(), this.host.scanProgress());
+    // v0.2.0: the sidebar is the only place that shows direction over time and
+    // which config won, so both are attached here rather than in summary(),
+    // which stays a pure function of the store.
+    const trend = this.host.historySeries();
+    if (trend.length > 1) s.trend = trend.map((x) => ({ t: x.t, score: x.score, grade: x.grade }));
+    const prov = this.host.thresholdProvenance();
+    const fromFile = Object.entries(prov.sources).filter(([, v]) => v === 'project file').length;
+    const fromSetting = Object.entries(prov.sources).filter(([, v]) => v === 'VS Code setting').length;
+    if (fromFile || fromSetting) {
+      s.thresholdNote = [
+        fromFile ? `${fromFile} threshold${fromFile > 1 ? 's' : ''} from ${prov.file}` : '',
+        fromSetting ? `${fromSetting} from your VS Code settings` : '',
+      ].filter(Boolean).join(', ') + '.';
+    }
+    if (prov.problems.length) s.configProblems = prov.problems;
     const msg: HostMessage = initial
       ? { type: 'init', files: [], summary: s, colorBlind: this.host.colorBlind() }
       : { type: 'summary', summary: s };

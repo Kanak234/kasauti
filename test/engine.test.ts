@@ -61,7 +61,7 @@ test('rules: thresholds are respected and clean code has no debt', async () => {
 
 test('rules: long lines are capped at 20 findings + 1 summary, debt counts all', () => {
   const a = { engineVersion: '1', languageKey: 'tier2:x', tier: 2 as const, lines: 50, sloc: 50, commentLines: 0,
-    functions: [], classes: [], todos: [], lineLengths: new Uint32Array(50).fill(200), hasSyntaxErrors: false,
+    functions: [], classes: [], todos: [], suppressions: [], lineLengths: new Uint32Array(50).fill(200), hasSyntaxErrors: false,
     tokenIds: new Uint32Array(0), tokenLines: new Uint32Array(0), analysisMs: 0 };
   const f = evaluate(a, DEFAULT_THRESHOLDS).filter((x) => x.ruleId === 'CQ010');
   assert.equal(f.length, 21);

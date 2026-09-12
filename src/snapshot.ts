@@ -32,6 +32,9 @@ export interface UiFile {
   dupLines: number;
   counts: Record<Severity, number>;
   top?: string;             // most expensive finding message
+  /** v0.2.0 F7: distinct rule ids that fired here, so the webview can filter
+   *  by rule without shipping every finding to it. */
+  rules?: string[];
 }
 
 export interface UiSummary {
@@ -49,6 +52,13 @@ export interface UiSummary {
   hotspots: Array<{ key: string; path: string; grade: Grade; debtText: string }>;
   scanned: boolean;
   scanning?: { done: number; total: number };
+  /** v0.2.0 F6: score history for the sparkline, oldest first. */
+  trend?: Array<{ t: number; score: number; grade: Grade }>;
+  /** v0.2.0 F5: where the thresholds came from, so a surprising grade is
+   *  explainable without hunting through settings. */
+  thresholdNote?: string;
+  /** v0.2.0 F5: problems found in .kasauti.toml, shown as a warning. */
+  configProblems?: string[];
 }
 
 export interface UiFinding {
@@ -69,9 +79,11 @@ export interface UiDetail {
 
 export function toUiFile(r: FileRecord): UiFile {
   const counts: Record<Severity, number> = { critical: 0, major: 0, minor: 0, info: 0 };
+  const rules = new Set<string>();
   let dupLines = 0;
   for (const f of r.findings) {
     counts[f.severity]++;
+    rules.add(f.ruleId);
     if (f.ruleId === 'CQ007') dupLines += f.endLine - f.line + 1;
   }
   const top = [...r.findings].sort((a, b) => b.debtMinutes - a.debtMinutes)[0];
@@ -83,6 +95,7 @@ export function toUiFile(r: FileRecord): UiFile {
     maxCog: Math.max(0, ...r.analysis.functions.map((f) => f.cognitive)),
     dupLines, counts,
     top: top && top.debtMinutes > 0 ? top.message : undefined,
+    rules: rules.size ? [...rules].sort() : undefined,
   };
 }
 

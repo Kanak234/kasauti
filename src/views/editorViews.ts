@@ -24,6 +24,10 @@ export class CodeLensView implements vscode.CodeLensProvider {
   private readonly emitter = new vscode.EventEmitter<void>();
   readonly onDidChangeCodeLenses = this.emitter.event;
   enabled = true;
+  /** v0.2.0 F1: what the lens shows. 'grade' is the least noisy. */
+  mode: 'grade' | 'metrics' | 'both' = 'both';
+  /** v0.2.0 F1: a 4000-function generated file must not get 4000 lenses. */
+  maxSymbols = 300;
 
   constructor(private readonly store: ResultStore) {}
 
@@ -32,18 +36,26 @@ export class CodeLensView implements vscode.CodeLensProvider {
   provideCodeLenses(doc: vscode.TextDocument): vscode.CodeLens[] {
     if (!this.enabled) return [];
     const r = this.store.get(doc.uri.toString());
+    // Tier 3 is skipped entirely; tier 2 positions are heuristics, so no lens.
     if (!r || r.analysis.tier !== 1) return [];
-    const scores = this.store.functionScores(r);
-    return r.analysis.functions.map((f, i) => {
+    const symbols = this.store.symbols(r);
+    if (symbols.length > this.maxSymbols) return [];   // generated file: stay quiet
+    return symbols.map(({ fn: f, score, findings }) => {
       if (f.startLine >= doc.lineCount) return undefined;
       const range = new vscode.Range(f.startLine, 0, f.startLine, 0);
-      const g = scores[i].grade;
-      const title = `$(pulse) Grade ${g}  ·  complexity ${f.cyclomatic}  ·  cognitive ${f.cognitive}  ·  ${f.sloc} lines`;
+      const metrics = `complexity ${f.cyclomatic}  ·  cognitive ${f.cognitive}  ·  ${f.sloc} lines`;
+      const title = this.mode === 'grade' ? `$(pulse) Grade ${score.grade}`
+        : this.mode === 'metrics' ? `$(pulse) ${metrics}`
+          : `$(pulse) Grade ${score.grade}  ·  ${metrics}`;
+      const worst = findings.slice().sort((a, b) => b.debtMinutes - a.debtMinutes)[0];
       return new vscode.CodeLens(range, {
-        title,
-        tooltip: `KASAUTI: ${f.name}\nCyclomatic ${f.cyclomatic}, cognitive ${f.cognitive}, nesting ${f.maxNesting}, ${f.params} parameters, maintainability ${f.mi.toFixed(0)}/100.\nClick to open this file in the pyramid view.`,
+        title: findings.length ? `${title}  ·  ${findings.length} finding${findings.length > 1 ? 's' : ''}` : title,
+        tooltip: `KASAUTI: ${f.name}\nGrade ${score.grade}, ${formatDebt(score.debtMinutes)} to fix.\n`
+          + `Cyclomatic ${f.cyclomatic}, cognitive ${f.cognitive}, nesting ${f.maxNesting}, ${f.params} parameters, maintainability ${f.mi.toFixed(0)}/100.`
+          + (worst ? `\nLargest finding: ${worst.ruleId} ${worst.message}` : '')
+          + '\nClick to open this function in the detail drawer.',
         command: 'kasauti.showFileDetail',
-        arguments: [r.key],
+        arguments: [r.key, f.startLine],
       });
     }).filter((x): x is vscode.CodeLens => !!x);
   }
@@ -60,20 +72,35 @@ export class StatusBarView implements vscode.Disposable {
     this.item.name = 'KASAUTI code quality';
   }
 
+  /** v0.2.0 F2: shown while a scan or a re-analysis is running. */
+  setBusy(busy: boolean): void { this.busy = busy; }
+  private busy = false;
+
   refresh(scanned: boolean): void {
     const ed = vscode.window.activeTextEditor;
     const r = ed ? this.store.get(ed.document.uri.toString()) : undefined;
+    if (this.busy) {
+      this.item.text = '$(sync~spin) KASAUTI …';
+      this.item.tooltip = 'KASAUTI is analysing.';
+      this.item.show();
+      return;
+    }
     const parts: string[] = [];
     const tip: string[] = [];
     if (r && r.analysis.tier !== 3) {
-      parts.push(`File ${r.score.grade}`);
-      tip.push(`This file: grade ${r.score.grade}, score ${r.score.score}/100, debt ${formatDebt(r.score.debtMinutes)}${r.analysis.tier === 2 ? ' (partial analysis)' : ''}.`);
+      // The tilde is the same "partial" marker the pyramid and the CLI use.
+      const mark = r.analysis.tier === 2 ? '~' : '';
+      parts.push(`File ${r.score.grade}${mark} ${(r.score.debtRatio * 100).toFixed(1)}%`);
+      tip.push(`This file: grade ${r.score.grade}, score ${r.score.score}/100, debt ${formatDebt(r.score.debtMinutes)} `
+        + `(${(r.score.debtRatio * 100).toFixed(1)}% of the time it would take to write it)`
+        + `${r.analysis.tier === 2 ? '. Partial analysis: no parser for this language, so the numbers are estimates' : ''}.`);
     }
     if (scanned) {
       const ws = this.store.workspaceScore();
       parts.push(`Workspace ${ws.grade} ${ws.score}`);
       tip.push(`Workspace: grade ${ws.grade}, score ${ws.score}/100, debt ${formatDebt(ws.debtMinutes)}.`);
     }
+    // Nothing to say about this file and no scan yet: get out of the way.
     if (!parts.length) { this.item.hide(); return; }
     this.item.text = `$(pulse) ${parts.join('  ')}`;
     this.item.tooltip = tip.join('\n') + '\nClick to open the pyramid.';

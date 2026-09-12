@@ -24,6 +24,7 @@ import { hierarchy, treemap, treemapSquarify } from 'd3-hierarchy';
 import type { UiDetail, UiFile, UiSummary } from '../src/snapshot';
 import type { Grade } from '../src/engine/types';
 import { GOLD, esc, fill, formatDebt, gradeColor, gradeInk, h, loadState, onHost, prefersReducedMotion, saveState, send, setColorBlind } from './common';
+import { matchesFilter } from './filter';
 import { layoutPyramid, PyramidLayout } from './layout';
 
 /* =============================================================================
@@ -36,7 +37,7 @@ const METRICS: Array<[Metric, string]> = [
 ];
 const metricValue = (f: UiFile, m: Metric) => (m === 'debt' ? f.debt : m === 'cc' ? f.maxCC : m === 'cog' ? f.maxCog : f.dupLines);
 
-const saved = loadState<{ view: View; metric: Metric }>();
+const saved = loadState<{ view: View; metric: Metric; filter?: string; camera?: number[]; collapsed?: string[] }>();
 const state = {
   files: new Map<string, UiFile>(),
   summary: undefined as UiSummary | undefined,
@@ -45,9 +46,23 @@ const state = {
   selected: undefined as string | undefined,
   detail: undefined as UiDetail | undefined,
   sort: { col: 'debt', dir: -1 } as { col: keyof UiFile; dir: 1 | -1 },
+  /** v0.2.0 F7: one filter box drives ALL THREE views, so switching view
+   *  never silently changes what you are looking at. */
+  filter: (saved?.filter ?? '') as string,
+  /** v0.2.0 F7: camera position, restored when the panel is reopened. */
+  camera: saved?.camera as number[] | undefined,
+  /** v0.2.0 F7: folders the user rolled up. A collapsed folder's files leave
+   *  the pyramid and are replaced by nothing — the point is to get a large
+   *  vendor or generated tree out of the way while you look at your own code. */
+  collapsed: new Set<string>(saved?.collapsed ?? []),
 };
-const visibleFiles = () => [...state.files.values()].filter((f) => f.tier !== 3);
-const persist = () => saveState({ view: state.view, metric: state.metric });
+
+/** Top-level folder of a path ('' for files at the root). */
+const topFolder = (p: string) => { const i = p.indexOf('/'); return i < 0 ? '' : p.slice(0, i); };
+
+const visibleFiles = () => [...state.files.values()]
+  .filter((f) => f.tier !== 3 && !state.collapsed.has(topFolder(f.path)) && matchesFilter(f, state.filter));
+const persist = () => saveState({ view: state.view, metric: state.metric, filter: state.filter, camera: state.camera, collapsed: [...state.collapsed] });
 
 /* =============================================================================
  * DOM skeleton
@@ -84,8 +99,67 @@ worstBtn.addEventListener('click', () => {
   const worst = visibleFiles().sort((a, b) => b.debt - a.debt)[0];
   if (worst) select(worst.key, true);
 });
+// v0.2.0 F7: filter box. Debounced, because every keystroke relays out the
+// whole pyramid, and a 5000-file relayout on each character is felt.
+const filterBox = h('input', {
+  type: 'search', class: 'filter', value: state.filter, spellcheck: 'false',
+  placeholder: 'Filter: grade:D  rule:CQ001  src/api',
+  'aria-label': 'Filter files by grade, rule or path',
+}) as HTMLInputElement;
+let filterTimer: number | undefined;
+filterBox.addEventListener('input', () => {
+  window.clearTimeout(filterTimer);
+  filterTimer = window.setTimeout(() => {
+    state.filter = filterBox.value;
+    persist();
+    renderAll(new Set());
+    const n = visibleFiles().length;
+    filterCount.textContent = state.filter.trim() ? `${n} of ${[...state.files.values()].filter((f) => f.tier !== 3).length}` : '';
+  }, 160);
+});
+filterBox.addEventListener('keydown', (e) => {
+  if ((e as KeyboardEvent).key === 'Escape') { filterBox.value = ''; filterBox.dispatchEvent(new Event('input')); }
+});
+const filterCount = h('span', { class: 'filter-count', 'aria-live': 'polite' });
+
+// v0.2.0 F7: one chip per top-level folder. Click to fold that folder out of
+// all three views. Rebuilt whenever the file set changes, but only when the
+// set of folders actually differs — otherwise every keystroke rebuilds it.
+const folderBar = h('div', { class: 'folders', role: 'group', 'aria-label': 'Show or hide folders' });
+let folderSig = '';
+
+function renderFolders(): void {
+  const all = [...state.files.values()].filter((f) => f.tier !== 3);
+  const counts = new Map<string, number>();
+  for (const f of all) counts.set(topFolder(f.path), (counts.get(topFolder(f.path)) ?? 0) + 1);
+  const names = [...counts.keys()].sort((a, b) => (counts.get(b)! - counts.get(a)!) || a.localeCompare(b));
+  const sig = names.map((n) => `${n}:${counts.get(n)}`).join('|') + '#' + [...state.collapsed].sort().join(',');
+  if (sig === folderSig) return;
+  folderSig = sig;
+  folderBar.replaceChildren();
+  // One folder is not a choice; don't clutter the toolbar with it.
+  if (names.length < 2) { folderBar.hidden = true; return; }
+  folderBar.hidden = false;
+  for (const name of names.slice(0, 12)) {
+    const off = state.collapsed.has(name);
+    const chip = h('button', {
+      type: 'button', class: off ? 'chip off' : 'chip', 'aria-pressed': off ? 'false' : 'true',
+      title: `${counts.get(name)} file${counts.get(name)! > 1 ? 's' : ''} in ${name || 'the project root'}`,
+    }, `${name || 'root'} ${counts.get(name)}`);
+    chip.addEventListener('click', () => {
+      if (state.collapsed.has(name)) state.collapsed.delete(name); else state.collapsed.add(name);
+      persist();
+      folderSig = '';
+      renderFolders();
+      renderAll(new Set());
+    });
+    folderBar.append(chip);
+  }
+}
+
 toolbar.append(viewSeg,
   h('label', { class: 'metric' }, h('span', {}, 'Height shows'), metricSel),
+  filterBox, filterCount, folderBar,
   resetBtn, worstBtn, h('span', { class: 'spacer' }), hallmark, scanBtn);
 
 function setView(v: View): void {
@@ -158,6 +232,13 @@ class Pyramid {
     this.scene.add(this.hoverBox, this.selectBox);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    // Save the camera shortly after the user stops moving it. Debounced
+    // because 'change' fires on every frame of an orbit.
+    let camTimer: number | undefined;
+    this.controls.addEventListener('change', () => {
+      window.clearTimeout(camTimer);
+      camTimer = window.setTimeout(() => this.saveCamera(), 400);
+    });
     this.controls.enableDamping = !prefersReducedMotion();
     this.controls.dampingFactor = 0.08;
     this.controls.maxPolarAngle = Math.PI * 0.47;   // never go under the floor
@@ -232,7 +313,7 @@ class Pyramid {
       mesh.computeBoundingSphere();
     });
     for (const k of [...this.heights.keys()]) if (!byKey.has(k)) { this.heights.delete(k); this.anims.delete(k); }
-    if (!this.framed && files.length) this.frame(false);
+    if (!this.framed && files.length && !this.restoreCamera()) this.frame(false);
     this.placeBox(this.selectBox, state.selected);
     this.placeBox(this.hoverBox, this.hovered);
   }
@@ -271,13 +352,35 @@ class Pyramid {
   }
 
   /** Point the camera at the whole pyramid. */
+  /** v0.2.0 F7: remember where the camera was, so reopening the panel does not
+   *  throw away the view you had lined up. Saved on a timer, not per frame. */
+  saveCamera(): void {
+    const p = this.camera.position, t = this.controls.target;
+    state.camera = [p.x, p.y, p.z, t.x, t.y, t.z];
+    persist();
+  }
+
+  /** Put the camera back. Returns false if there was nothing saved. */
+  restoreCamera(): boolean {
+    const c = state.camera;
+    if (!c || c.length !== 6 || c.some((n) => !Number.isFinite(n))) return false;
+    this.camera.position.set(c[0], c[1], c[2]);
+    this.controls.target.set(c[3], c[4], c[5]);
+    this.controls.update();
+    this.framed = true;
+    return true;
+  }
+
   frame(animate: boolean): void {
     if (!this.layout) return;
     this.framed = true;
     const { width, height } = this.layout;
     const target = new THREE.Vector3(0, height * 0.38, 0);
-    const dist = Math.max(width, height) * 1.55 + 6;
-    const pos = new THREE.Vector3(dist * 0.72, height * 0.5 + dist * 0.62, dist * 0.72);
+    // v0.2.0: the pyramid is now wide and low, so distance follows the WIDTH.
+    // The old `max(width, height) * 1.55 + 6` had a constant that dwarfed a
+    // small project — a seven-file pyramid sat as a speck in the middle.
+    const dist = width * 1.85 + height * 0.8 + 2.5;
+    const pos = new THREE.Vector3(dist * 0.72, height * 0.45 + dist * 0.58, dist * 0.72);
     this.flyTo(pos, target, animate);
   }
 
@@ -636,6 +739,7 @@ function renderChrome(): void {
 
 function renderAll(changed: Set<string>): void {
   renderChrome();
+  renderFolders();
   const files = visibleFiles();
   // Empty states are directions, not moods. Both messages may apply at once
   // (no WebGL AND nothing scanned): the scan button must never be hidden.

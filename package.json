@@ -2,7 +2,7 @@
   "name": "kasauti",
   "displayName": "KASAUTI — Code Quality Visualizer",
   "description": "Industry-standard code quality metrics (cyclomatic, cognitive, Halstead, maintainability, duplication) with an A–E grade and a live 3D pyramid of your codebase. Offline. 24 languages fully, every other language partially.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "KANAKPRABHAKAR",
   "author": {
     "name": "Kanak Prabhakar"
@@ -60,6 +60,11 @@
           "name": "Overview"
         },
         {
+          "type": "webview",
+          "id": "kasauti.currentFile",
+          "name": "Current file"
+        },
+        {
           "id": "kasauti.issues",
           "name": "Issues"
         }
@@ -114,6 +119,21 @@
       {
         "command": "kasauti.showLog",
         "title": "Show Log",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.clearHistory",
+        "title": "Clear Trend History",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.createProjectConfig",
+        "title": "Create Project Configuration File",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.cycleCodeLens",
+        "title": "Cycle CodeLens Detail",
         "category": "KASAUTI"
       }
     ],
@@ -284,6 +304,27 @@
           "default": 50000,
           "minimum": 1,
           "description": "Ask before scanning workspaces with more files than this."
+        },
+        "kasauti.codeLens.mode": {
+          "type": "string",
+          "enum": [
+            "grade",
+            "metrics",
+            "both"
+          ],
+          "default": "both",
+          "enumDescriptions": [
+            "Only the grade — the least noisy.",
+            "Only the numbers: complexity, cognitive complexity, lines.",
+            "Grade and numbers."
+          ],
+          "description": "How much each CodeLens shows above a function."
+        },
+        "kasauti.codeLens.maxSymbols": {
+          "type": "integer",
+          "default": 300,
+          "minimum": 1,
+          "description": "Above this many functions in one file, CodeLens is suppressed. Generated files can contain thousands of functions, and a lens on each one makes the file unreadable."
         }
       }
     }
@@ -320,5 +361,8 @@
     "esbuild": "^0.28.2",
     "jsdom": "^24.1.3",
     "typescript": "^5.9.3"
+  },
+  "bin": {
+    "kasauti": "./dist/cli.js"
   }
 }

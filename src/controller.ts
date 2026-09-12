@@ -15,6 +15,7 @@
  * ========================================================================== */
 
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import * as path from 'path';
 import { AnalysisCache } from './cache';
 import { KasautiConfig, readConfig } from './config';
@@ -27,6 +28,11 @@ import { ExcludeFilter, findSourceFiles, readSource, relPathOf } from './scanner
 import { ResultStore } from './store';
 import { DiagnosticsView } from './views/diagnostics';
 import { CodeLensView, IssuesTree, StatusBarView } from './views/editorViews';
+import { CurrentFileView } from './views/currentFile';
+import { KasautiFixProvider } from './fixes';
+import { History } from './history';
+import { EMPTY_CONFIG, mergeThresholds, ProjectConfig, thresholdSources } from './config/projectConfig';
+import { parsePackageJsonConfig, parseProjectConfig, SAMPLE_CONFIG } from './config/projectConfig';
 import { OverviewView, PyramidPanel, WebviewHost } from './views/webviews';
 import { CancelledError, WorkerPool } from './workerPool';
 
@@ -49,6 +55,12 @@ export class Controller implements vscode.Disposable, WebviewHost {
   private readonly issues: IssuesTree;
   private readonly overview: OverviewView;
   private readonly pyramid: PyramidPanel;
+  /** v0.2.0 F3 */
+  private readonly currentFile: CurrentFileView;
+  /** v0.2.0 F6 */
+  private readonly history: History;
+  /** v0.2.0 F5: thresholds the repo asked for, merged under explicit settings. */
+  private project: ProjectConfig = EMPTY_CONFIG;
 
   // state
   private scanned = false;
@@ -62,7 +74,15 @@ export class Controller implements vscode.Disposable, WebviewHost {
 
   constructor(private readonly ctx: vscode.ExtensionContext) {
     this.cfg = readConfig();
-    this.store = new ResultStore(this.cfg.thresholds, this.cfg.includeTier2InScore);
+    // v0.2.0 F5: the project file is read before the store exists, so the very
+    // first analysis already uses the repo's thresholds. Explicit VS Code
+    // settings still win — see applyThresholds().
+    this.project = this.readProjectConfig();
+    this.history = new History({
+      get: (k) => ctx.workspaceState.get(k),
+      update: (k, v) => ctx.workspaceState.update(k, v),
+    });
+    this.store = new ResultStore(this.effectiveThresholds(), this.cfg.includeTier2InScore);
     const dist = vscode.Uri.joinPath(ctx.extensionUri, 'dist').fsPath;
     this.pool = new WorkerPool(path.join(dist, 'worker.js'), path.join(dist, 'wasm'), undefined, (m) => this.log.appendLine(m));
     this.cache = new AnalysisCache(ctx.storageUri ? path.join(ctx.storageUri.fsPath, 'cache') : undefined);
@@ -71,16 +91,27 @@ export class Controller implements vscode.Disposable, WebviewHost {
     this.diagnostics.setScope(this.cfg.diagnosticsScope);
     this.codeLens = new CodeLensView(this.store);
     this.codeLens.enabled = this.cfg.codeLens;
+    this.codeLens.mode = this.cfg.codeLensMode;
+    this.codeLens.maxSymbols = this.cfg.codeLensMaxSymbols;
     this.statusBar = new StatusBarView(this.store);
     this.issues = new IssuesTree(this.store);
     this.overview = new OverviewView(ctx.extensionUri, this);
     this.pyramid = new PyramidPanel(ctx.extensionUri, this);
+    this.currentFile = new CurrentFileView(this.store, ctx.extensionUri);
 
     this.subs.push(
       this.log, this.diagnostics, this.statusBar, this.overview, this.pyramid,
       vscode.languages.registerCodeLensProvider({ scheme: '*' }, this.codeLens),
       vscode.window.registerTreeDataProvider('kasauti.issues', this.issues),
       vscode.window.registerWebviewViewProvider(OverviewView.id, this.overview),
+      vscode.window.registerWebviewViewProvider(CurrentFileView.viewType, this.currentFile),
+      // v0.2.0 F4: Quick Fixes. Tier 2 files are refused inside the provider.
+      vscode.languages.registerCodeActionsProvider({ scheme: '*' }, new KasautiFixProvider({
+        languageKey: (doc) => this.store.get(doc.uri.toString())?.analysis.languageKey,
+        isPartial: (doc) => (this.store.get(doc.uri.toString())?.analysis.tier ?? 3) !== 1,
+      }), { providedCodeActionKinds: KasautiFixProvider.kinds }),
+      // v0.2.0 F5: re-read .kasauti.toml when it is edited, created or deleted.
+      this.watchProjectConfig(),
     );
 
     // Every store change fans out to every view.
@@ -92,6 +123,7 @@ export class Controller implements vscode.Disposable, WebviewHost {
       this.overview.refresh();
       this.pyramid.update(c.changed, c.removed);
       this.statusBar.refresh(this.scanned);
+      this.currentFile.refresh();
     }));
 
     this.registerCommands();
@@ -139,6 +171,19 @@ export class Controller implements vscode.Disposable, WebviewHost {
       void vscode.window.showInformationMessage('KASAUTI: analysis cache cleared. The next scan re-analyzes every file.');
     });
     reg('kasauti.showLog', () => this.log.show());
+    // ---- v0.2.0 commands -------------------------------------------------
+    reg('kasauti.clearHistory', async () => {
+      this.history.clear();
+      this.overview.refresh();
+      void vscode.window.showInformationMessage('KASAUTI: trend history cleared.');
+    });
+    reg('kasauti.createProjectConfig', () => this.createProjectConfig());
+    reg('kasauti.cycleCodeLens', () => {
+      const order = ['grade', 'metrics', 'both'] as const;
+      this.codeLens.mode = order[(order.indexOf(this.codeLens.mode) + 1) % order.length];
+      this.codeLens.refresh();
+      void vscode.window.showInformationMessage(`KASAUTI CodeLens: ${this.codeLens.mode}.`);
+    });
   }
 
   private openPyramid(focusKey?: string): void {
@@ -290,16 +335,93 @@ export class Controller implements vscode.Disposable, WebviewHost {
       void this.ctx.workspaceState.update(SCANNED_KEY, true);
       this.startWatcher();
       const ws = this.store.workspaceScore();
+      // v0.2.0 F6: one sample per COMPLETED scan. Live edits are deliberately
+      // not recorded — a trend of keystrokes is a trend of typing, not quality.
+      this.history.record({
+        grade: ws.grade, score: ws.score, debtMinutes: ws.debtMinutes,
+        sloc: ws.sloc, files: this.store.workspaceFiles().length,
+      });
       this.log.appendLine(`Scanned ${files.length} files in ${((Date.now() - started) / 1000).toFixed(1)} s — workspace grade ${ws.grade} (${ws.score}).`);
     });
     this.scanning = undefined;
     cts.dispose();
     this.overview.refresh();
     this.statusBar.refresh(this.scanned);
+    this.currentFile.refresh();
     this.pyramid.update([], []);
   }
 
   private isOpen(key: string): boolean { return vscode.workspace.textDocuments.some((d) => d.uri.toString() === key); }
+
+  /* ======================================================================
+   * v0.2.0 F5 — project configuration
+   * ==================================================================== */
+
+  /** Read .kasauti.toml, or the `kasauti` key of package.json, from the first
+   *  workspace folder. Never throws: a broken config must not stop activation. */
+  private readProjectConfig(): ProjectConfig {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) return EMPTY_CONFIG;
+    try {
+      const toml = path.join(folder.uri.fsPath, '.kasauti.toml');
+      if (fs.existsSync(toml)) return parseProjectConfig(fs.readFileSync(toml, 'utf8'));
+      const pkg = path.join(folder.uri.fsPath, 'package.json');
+      if (fs.existsSync(pkg)) {
+        const parsed = parsePackageJsonConfig(JSON.parse(fs.readFileSync(pkg, 'utf8')));
+        if (parsed) return parsed;
+      }
+    } catch (e) {
+      this.log.appendLine(`Could not read the project config: ${(e as Error).message}. Using settings and defaults.`);
+    }
+    return EMPTY_CONFIG;
+  }
+
+  /** Defaults < project file < explicit VS Code settings (SPEC R5.1). */
+  private effectiveThresholds() {
+    return mergeThresholds(this.project.thresholds, this.cfg.explicitThresholds);
+  }
+
+  /** For the Overview: which source each threshold came from. */
+  thresholdProvenance(): { sources: Record<string, string>; file: string; problems: string[] } {
+    return {
+      sources: thresholdSources(this.project.thresholds, this.cfg.explicitThresholds),
+      file: this.project.source,
+      problems: this.project.problems.map((p) => `${p.line ? `line ${p.line}: ` : ''}${p.key} — ${p.message}`),
+    };
+  }
+
+  /** Trend data for the Overview sparkline (F6). */
+  historySeries() { return this.history.series(); }
+
+  private watchProjectConfig(): vscode.Disposable {
+    const watcher = vscode.workspace.createFileSystemWatcher('**/{.kasauti.toml,package.json}');
+    const reload = () => {
+      const before = JSON.stringify(this.project.thresholds);
+      this.project = this.readProjectConfig();
+      for (const p of this.project.problems) {
+        this.log.appendLine(`${this.project.source}${p.line ? `:${p.line}` : ''} — ${p.key}: ${p.message}`);
+      }
+      if (JSON.stringify(this.project.thresholds) === before) return;   // nothing that affects grades
+      this.store.updateSettings(this.effectiveThresholds(), this.cfg.includeTier2InScore);
+      this.log.appendLine('Project configuration changed: re-scored every file.');
+    };
+    watcher.onDidChange(reload); watcher.onDidCreate(reload); watcher.onDidDelete(reload);
+    return watcher;
+  }
+
+  private async createProjectConfig(): Promise<void> {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) { void vscode.window.showWarningMessage('KASAUTI: open a folder first.'); return; }
+    const target = vscode.Uri.joinPath(folder.uri, '.kasauti.toml');
+    if (fs.existsSync(target.fsPath)) {
+      void vscode.window.showInformationMessage('KASAUTI: .kasauti.toml already exists.');
+      await vscode.window.showTextDocument(target);
+      return;
+    }
+    await vscode.workspace.fs.writeFile(target, Buffer.from(SAMPLE_CONFIG, 'utf8'));
+    await vscode.window.showTextDocument(target);
+    void vscode.window.showInformationMessage('KASAUTI: created .kasauti.toml. The CI gate stays off until you uncomment the [gate] block.');
+  }
 
   /** Keep results current when files change outside the editor. */
   private startWatcher(): void {
@@ -363,9 +485,11 @@ export class Controller implements vscode.Disposable, WebviewHost {
   private onConfig(): void {
     const old = this.cfg;
     this.cfg = readConfig();
-    this.store.updateSettings(this.cfg.thresholds, this.cfg.includeTier2InScore);
+    this.store.updateSettings(this.effectiveThresholds(), this.cfg.includeTier2InScore);
     this.diagnostics.setScope(this.cfg.diagnosticsScope);
     this.codeLens.enabled = this.cfg.codeLens;
+    this.codeLens.mode = this.cfg.codeLensMode;
+    this.codeLens.maxSymbols = this.cfg.codeLensMaxSymbols;
     this.codeLens.refresh();
     if (old.colorBlindPalette !== this.cfg.colorBlindPalette) this.pyramid.palette(this.cfg.colorBlindPalette);
     const rescan = JSON.stringify([old.exclude, old.maxFileSizeKB, old.extraTier2Extensions])

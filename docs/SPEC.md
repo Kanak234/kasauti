@@ -515,3 +515,93 @@ Honest list of gaps:
 | `test/webview.test.ts` (6) | Both webviews in jsdom: WebGL fallback, list sorting, live updates, drawer, empty states, pyramid geometry |
 | `test/export.test.ts` (3) | SARIF schema validation, JSON completeness, self-contained HTML |
 | `test/activation.test.ts` (2) | Packaged extension activates; manifest and code agree; every rule has a docs page |
+
+---
+
+# Part G — v0.2.0 implementation record
+
+Written after the work, from the code as it stands. Where the v0.2.0 plan and
+the source disagreed, the source won and the difference is recorded here.
+
+## G1. What the plan got wrong
+
+The update plan was written without access to the source and over-estimated
+the work in three places:
+
+| Plan assumed | Reality |
+| --- | --- |
+| The analysis chain still imports `vscode`; lifting it is the release's real cost | Already clean. `vscode` appears only in `controller`, `extension`, `config`, `scanner` and the three view files. The CLI needed no refactor. |
+| CodeLens and the status bar are new work | Both shipped in v0.1.0. They were extended, not built. |
+| Pyramid navigation (F7) is new work | OrbitControls, reset view, worst-file jump, arrow-key navigation and the metric selector all shipped in v0.1.0. Only the filter, folder chips and camera persistence were missing. |
+
+One planned item was **cut**: a Quick Fix removing unused bindings. No rule in
+CQ001–CQ012 reports unused bindings, and the plan said not to invent one.
+
+## G2. The pyramid geometry defect
+
+v0.1.0 rendered as "one long stick". Four causes, each measured from the layout
+output rather than guessed:
+
+1. blocks were 5–6.5× taller than their own width — spikes, not buildings;
+2. floors shrank ~17% per level, so no taper was visible;
+3. total height ≈ base width, giving a tower silhouette;
+4. a project whose files share one folder produced a single floor.
+
+The layout was rewritten. The base slab is sized from the bottom tier's own
+grid; each floor above is `SHRINK = 0.74` of the one below; grids stretch to
+fill their slab; block heights are capped per block at `1.6 × width`. Where
+folder depth yields fewer than three tiers, the largest tier is split by
+directory, and failing that by file-size band, so the steps still mean
+something. Two intermediate models were tried and rejected: growing the base to
+guarantee taper (left slabs three times wider than their contents) and
+shrinking blindly upward (produced negative floor sizes).
+
+Six invariants are asserted in `test/webview.test.ts`: minimum and maximum
+floor count, per-floor taper, global height-to-width ratio, per-block aspect,
+no block overhanging its slab, and no block piercing the floor above.
+
+## G3. Scoring is unchanged, and that is tested
+
+`test/v2.test.ts` runs `test/fixtures/worker-0.1.0.js` — lifted verbatim from
+`kasauti-0.1.0.vsix` — and the current worker over the whole sample corpus,
+requiring every metric and every per-function value to match. A second test
+pins the grade boundaries at debt ratios of 5, 10, 20 and 50 percent.
+
+## G4. Suppressions
+
+`kasauti-disable-next-line|-line|-file [CQ0xx, ...]` read from comment text, so
+all 24 grammars and the generic tier are covered without per-language work.
+Applied in the store after `evaluate()`, so a suppressed finding contributes no
+debt. Pure function, unit-tested by scope and by rule id.
+
+## G5. Configuration precedence
+
+Defaults < `.kasauti.toml` or the `package.json` `kasauti` key < a VS Code
+setting the user explicitly set. "Explicitly" is read through
+`WorkspaceConfiguration.inspect()`: a setting sitting at its default must not
+beat the project file, or committing a config would have no effect for anyone.
+Validation never throws; each bad value is reported and dropped individually.
+
+## G6. The CI gate defaults to off
+
+A gate exists only if the project file contains a `[gate]` block or the user
+passes `--min-grade`. Installing a quality tool must not start failing builds
+nobody asked it to judge.
+
+## G7. Verified in this release
+
+- 79 of 79 tests pass, including the 19 added for v0.2.0.
+- CLI exercised against a temporary project: no-gate exit 0, `failOn` exit 1
+  with the reason on stderr, `--no-gate` exit 0, malformed config warns and
+  still scans, `init` refuses to overwrite, CLI grade equals editor grade.
+- Pyramid geometry inspected visually by rendering the layout isometrically
+  offline, across small, typical and 300-file projects.
+
+## G8. NOT verified in this release
+
+- The Three.js/WebGL render itself. This environment has no GPU. The geometry
+  feeding the renderer is verified; the renderer's output is not.
+- The current-file panel, the filter box and the folder chips have not been
+  seen in a running editor.
+- macOS and Windows. Linux only.
+

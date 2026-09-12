@@ -24,6 +24,51 @@ function button(label: string, id: 'scan' | 'pyramid' | 'export' | 'cancel', pri
   return b;
 }
 
+/**
+ * Score over time as an SVG sparkline. SVG, not canvas: it scales with the
+ * sidebar, follows the theme colour, and needs no redraw on resize.
+ */
+function trendSection(trend: NonNullable<UiSummary['trend']>): HTMLElement {
+  const W = 240, H = 40;
+  const t0 = trend[0].t, t1 = trend[trend.length - 1].t;
+  const span = Math.max(1, t1 - t0);
+  const pts = trend.map((x) => {
+    const px = ((x.t - t0) / span) * W;
+    const py = H - (Math.max(0, Math.min(100, x.score)) / 100) * H;
+    return `${px.toFixed(1)},${py.toFixed(1)}`;
+  }).join(' ');
+
+  const first = trend[0], last = trend[trend.length - 1];
+  const change = last.score - first.score;
+  const days = Math.round((t1 - t0) / 86_400_000);
+  const when = days >= 2 ? `over ${days} days` : 'over the last few scans';
+  const word = change > 0 ? 'improved' : change < 0 ? 'dropped' : 'held steady';
+  const caption = change === 0
+    ? `Score ${word} at ${last.score} ${when}.`
+    : `Score ${word} ${Math.abs(change)} point${Math.abs(change) === 1 ? '' : 's'} ${when} (${first.score} to ${last.score}).`;
+
+  // Built as markup because an SVG needs createElementNS, which h() does not do.
+  const wrap = h('section', { class: 'trend' }, h('h3', {}, 'Trend'));
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('class', 'spark');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', caption);
+  const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  area.setAttribute('points', `0,${H} ${pts} ${W},${H}`);
+  area.setAttribute('class', 'spark-fill');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('points', pts);
+  line.setAttribute('class', 'spark-line');
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  const [lx, ly] = pts.split(' ').pop()!.split(',');
+  dot.setAttribute('cx', lx); dot.setAttribute('cy', ly); dot.setAttribute('r', '2.5');
+  dot.setAttribute('class', 'spark-dot');
+  svg.append(area, line, dot);
+  wrap.append(svg, h('p', { class: 'muted' }, caption));
+  return wrap;
+}
+
 function render(s: UiSummary): void {
   app.replaceChildren();
 
@@ -57,6 +102,20 @@ function render(s: UiSummary): void {
     h('dt', {}, 'Duplicated lines'), h('dd', {}, `${s.duplicatedPct}%`),
     h('dt', {}, 'Files'), h('dd', {}, `${s.files}`));
   app.append(h('section', { class: 'top' }, mark, facts));
+
+  // ---- v0.2.0 F6: trend ------------------------------------------------------
+  // A grade alone says nothing about direction. "C, and improving" is the
+  // sentence that changes behaviour, so the sparkline sits directly under the
+  // hallmark rather than at the bottom of the panel.
+  if (s.trend && s.trend.length > 1) app.append(trendSection(s.trend));
+
+  // ---- v0.2.0 F5: which thresholds are in force -----------------------------
+  if (s.configProblems?.length) {
+    app.append(h('p', { class: 'note warn' },
+      `Problems in the project configuration: ${s.configProblems.join('; ')}. Defaults were used for those values.`));
+  } else if (s.thresholdNote) {
+    app.append(h('p', { class: 'note' }, `Thresholds: ${s.thresholdNote}`));
+  }
   if (s.tier2 || s.skipped) {
     app.append(h('p', { class: 'note' },
       [s.tier2 ? `${s.tier2} file${s.tier2 > 1 ? 's' : ''} had partial analysis (no parser for the language).` : '',

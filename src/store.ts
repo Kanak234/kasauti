@@ -14,8 +14,9 @@
 
 import { DuplicationIndex } from './engine/duplication';
 import { duplicationDebt, evaluate } from './engine/rules';
+import { applySuppressions } from './engine/suppress';
 import { scoreOf } from './engine/scoring';
-import type { FileAnalysis, Finding, ScoreResult, Thresholds } from './engine/types';
+import type { FileAnalysis, Finding, FunctionMetrics, ScoreResult, Thresholds } from './engine/types';
 
 export interface FileRecord {
   key: string;             // uri.toString() — unique id of the file
@@ -28,6 +29,15 @@ export interface FileRecord {
 }
 
 export interface StoreChange { changed: string[]; removed: string[]; all?: boolean }
+
+/** One analysed function with everything a view needs about it (v0.2.0 F1/F3). */
+export interface SymbolRecord {
+  fn: FunctionMetrics;
+  findings: Finding[];
+  score: ScoreResult;
+  /** True when the numbers come from Tier 2 estimation, not a real parse. */
+  estimated: boolean;
+}
 
 /** Rule -> debt category for the Overview breakdown bar. */
 export const CATEGORY: Record<string, 'complexity' | 'size' | 'duplication' | 'style'> = {
@@ -109,7 +119,7 @@ export class ResultStore {
 
   /** Rules + duplication -> findings -> score, for one file. */
   private reevaluate(r: FileRecord): void {
-    const findings = evaluate(r.analysis, this.thresholds);
+    let findings = evaluate(r.analysis, this.thresholds);
     if (r.inWorkspace && this.batchDepth === 0) {
       for (const b of this.dup.duplicatesFor(r.key)) {
         const lines = b.endLine - b.startLine + 1;
@@ -124,6 +134,9 @@ export class ResultStore {
       }
     }
     findings.sort((a, b) => a.line - b.line || a.ruleId.localeCompare(b.ruleId));
+    // v0.2.0 F4: honour `kasauti-disable-*` comments. Applied last, so a
+    // suppressed finding costs no debt and never reaches a view.
+    findings = applySuppressions(findings, r.analysis.suppressions ?? []);
     r.findings = findings;
     r.score = scoreOf(findings.reduce((s, f) => s + f.debtMinutes, 0), r.analysis.sloc);
   }
@@ -178,13 +191,25 @@ export class ResultStore {
       .sort((a, b) => b.score.debtMinutes - a.score.debtMinutes).slice(0, n);
   }
 
-  /** Per-function debt & grade (for CodeLens and the detail drawer). */
-  functionScores(r: FileRecord): ScoreResult[] {
+  /**
+   * v0.2.0: symbol-level read path. CodeLens (F1), the current-file panel (F3)
+   * and the detail drawer all read this one method, so they can never disagree
+   * about a function's grade. Built once per call in O(findings + functions).
+   */
+  symbols(r: FileRecord): SymbolRecord[] {
+    const byLine = new Map<number, Finding[]>();
+    for (const f of r.findings) {
+      if (f.symbol === undefined) continue;
+      const list = byLine.get(f.line);
+      if (list) list.push(f); else byLine.set(f.line, [f]);
+    }
     return r.analysis.functions.map((fn) => {
-      const debt = r.findings
-        .filter((f) => f.symbol === fn.name && f.line === fn.startLine)
-        .reduce((s, f) => s + f.debtMinutes, 0);
-      return scoreOf(debt, fn.sloc);
+      const findings = (byLine.get(fn.startLine) ?? []).filter((f) => f.symbol === fn.name);
+      const debt = findings.reduce((s, f) => s + f.debtMinutes, 0);
+      return { fn, findings, score: scoreOf(debt, fn.sloc), estimated: r.analysis.tier === 2 };
     });
   }
+
+  /** Per-function debt & grade, in the order of analysis.functions. */
+  functionScores(r: FileRecord): ScoreResult[] { return this.symbols(r).map((s) => s.score); }
 }

@@ -1,0 +1,324 @@
+{
+  "name": "kasauti",
+  "displayName": "KASAUTI — Code Quality Visualizer",
+  "description": "Industry-standard code quality metrics (cyclomatic, cognitive, Halstead, maintainability, duplication) with an A–E grade and a live 3D pyramid of your codebase. Offline. 24 languages fully, every other language partially.",
+  "version": "0.1.0",
+  "publisher": "KANAKPRABHAKAR",
+  "author": {
+    "name": "Kanak Prabhakar"
+  },
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Visualization",
+    "Education",
+    "Other"
+  ],
+  "keywords": [
+    "code quality",
+    "complexity",
+    "cyclomatic",
+    "cognitive complexity",
+    "maintainability",
+    "duplication",
+    "technical debt",
+    "visualization",
+    "3d",
+    "sonar",
+    "metrics"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true,
+      "description": "KASAUTI only reads and parses files; it never runs your code."
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "kasauti",
+          "title": "KASAUTI",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "kasauti": [
+        {
+          "type": "webview",
+          "id": "kasauti.overview",
+          "name": "Overview"
+        },
+        {
+          "id": "kasauti.issues",
+          "name": "Issues"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "kasauti.issues",
+        "contents": "No findings yet.\n[Scan workspace](command:kasauti.scanWorkspace)\nFindings for open files appear here as you type."
+      }
+    ],
+    "commands": [
+      {
+        "command": "kasauti.scanWorkspace",
+        "title": "Scan Workspace",
+        "category": "KASAUTI",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "kasauti.cancelScan",
+        "title": "Cancel Scan",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.openPyramid",
+        "title": "Open Pyramid",
+        "category": "KASAUTI",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "kasauti.showFileDetail",
+        "title": "Show This File in the Pyramid",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.exportReport",
+        "title": "Export Report",
+        "category": "KASAUTI",
+        "icon": "$(export)"
+      },
+      {
+        "command": "kasauti.toggleIssueGrouping",
+        "title": "Group Issues by File / Rule",
+        "category": "KASAUTI",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "kasauti.clearCache",
+        "title": "Clear Analysis Cache",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.showLog",
+        "title": "Show Log",
+        "category": "KASAUTI"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "kasauti.scanWorkspace",
+          "when": "view == kasauti.overview",
+          "group": "navigation@1"
+        },
+        {
+          "command": "kasauti.openPyramid",
+          "when": "view == kasauti.overview",
+          "group": "navigation@2"
+        },
+        {
+          "command": "kasauti.exportReport",
+          "when": "view == kasauti.overview",
+          "group": "navigation@3"
+        },
+        {
+          "command": "kasauti.toggleIssueGrouping",
+          "when": "view == kasauti.issues",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "kasauti.showFileDetail",
+          "when": "editorIsOpen"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "KASAUTI",
+      "properties": {
+        "kasauti.liveAnalysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-analyze the file while you type (like Live Preview), without waiting for save."
+        },
+        "kasauti.liveDelayMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 50,
+          "description": "Pause after the last keystroke before re-analyzing, in milliseconds."
+        },
+        "kasauti.thresholds.cyclomatic": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "CQ001: maximum cyclomatic complexity per function (McCabe's recommendation: 10)."
+        },
+        "kasauti.thresholds.cognitive": {
+          "type": "number",
+          "default": 15,
+          "minimum": 1,
+          "description": "CQ002: maximum cognitive complexity per function (SonarSource default: 15)."
+        },
+        "kasauti.thresholds.functionLength": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "description": "CQ003: maximum lines of code per function."
+        },
+        "kasauti.thresholds.parameters": {
+          "type": "number",
+          "default": 7,
+          "minimum": 1,
+          "description": "CQ004: maximum parameters per function (SonarSource default: 7)."
+        },
+        "kasauti.thresholds.nesting": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "description": "CQ005: maximum nesting depth of control flow (SonarSource default: 3)."
+        },
+        "kasauti.thresholds.fileLength": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 1,
+          "description": "CQ006: maximum lines per file (SonarSource default: 1000)."
+        },
+        "kasauti.thresholds.duplicationTokens": {
+          "type": "number",
+          "default": 100,
+          "minimum": 20,
+          "description": "CQ007: minimum size of a duplicated block, in tokens."
+        },
+        "kasauti.thresholds.maintainabilityWarning": {
+          "type": "number",
+          "default": 20,
+          "minimum": 1,
+          "description": "CQ008: maintainability index below this is a warning (Visual Studio band)."
+        },
+        "kasauti.thresholds.maintainabilityCritical": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "CQ008: maintainability index below this is critical (Visual Studio band)."
+        },
+        "kasauti.thresholds.classMethods": {
+          "type": "number",
+          "default": 35,
+          "minimum": 1,
+          "description": "CQ009: maximum methods per class (SonarSource default: 35)."
+        },
+        "kasauti.thresholds.lineLength": {
+          "type": "number",
+          "default": 120,
+          "minimum": 1,
+          "description": "CQ010: maximum characters per line."
+        },
+        "kasauti.includePartialAnalysisInScore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Count files with partial analysis (languages without a parser) in folder and workspace scores."
+        },
+        "kasauti.diagnostics.scope": {
+          "type": "string",
+          "enum": [
+            "openFiles",
+            "workspace",
+            "off"
+          ],
+          "default": "openFiles",
+          "enumDescriptions": [
+            "Show findings in the Problems panel for open files only.",
+            "Show findings for every scanned file.",
+            "Do not show findings in the Problems panel."
+          ],
+          "description": "Which files get squiggles and Problems-panel entries."
+        },
+        "kasauti.codeLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show grade and complexity above each function."
+        },
+        "kasauti.exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra glob patterns to exclude from scans, e.g. \"**/generated/**\". .gitignore and dependency folders are already excluded."
+        },
+        "kasauti.maxFileSizeKB": {
+          "type": "number",
+          "default": 1024,
+          "minimum": 1,
+          "description": "Files larger than this are skipped."
+        },
+        "kasauti.additionalPartialAnalysisExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra file extensions (e.g. \".abc\") to analyze with partial, language-independent analysis."
+        },
+        "kasauti.colorBlindPalette": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use a color-blind-safe palette (Okabe–Ito) for grades."
+        },
+        "kasauti.largeWorkspaceWarning": {
+          "type": "number",
+          "default": 50000,
+          "minimum": 1,
+          "description": "Ask before scanning workspaces with more files than this."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "build:prod": "node esbuild.mjs --production",
+    "typecheck": "tsc -p .",
+    "test": "node esbuild.mjs --test && node --test \"dist-test/**/*.test.js\"",
+    "package": "npm run typecheck && npm run build:prod && vsce package --no-dependencies"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kanak234/kasauti"
+  },
+  "dependencies": {
+    "@tree-sitter-grammars/tree-sitter-lua": "0.4.1",
+    "d3-hierarchy": "^3.1.2",
+    "ignore": "^7.0.9",
+    "three": "^0.186.0",
+    "tree-sitter-wasms": "0.1.13",
+    "web-tree-sitter": "0.25.10"
+  },
+  "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^22.20.2",
+    "@types/three": "^0.185.4",
+    "@types/vscode": "1.85",
+    "@vscode/vsce": "^3.9.2",
+    "ajv": "^8.20.0",
+    "ajv-draft-04": "^1.0.0",
+    "ajv-formats": "^3.0.1",
+    "esbuild": "^0.28.2",
+    "jsdom": "^24.1.3",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,14 @@
+# Ship only what the extension needs at runtime.
+.vscode/**
+node_modules/**
+src/**
+webview/**
+test/**
+scratch/**
+dist-test/**
+docs/**
+esbuild.mjs
+tsconfig.json
+**/*.map
+**/*.ts
+.gitignore

@@ -1,0 +1,215 @@
+/* =============================================================================
+ * KASAUTI — webview/style.css
+ * -----------------------------------------------------------------------------
+ * WHAT:  Styles for both webviews (sidebar Overview, Pyramid panel).
+ * WHY:   UI brief §C1: native chrome uses ONLY VS Code theme variables, so it
+ *        looks built-in in every theme (light, dark, high contrast). The 3D
+ *        stage alone has its own "schist" backdrop — the dark stone of a
+ *        kasauti — with gold as the single accent (the streak of gold).
+ * FLOW:  copied to dist/webview.css by esbuild.mjs; linked by views/webviews.ts
+ * ========================================================================== */
+
+:root {
+  --gold: #d4a94a;
+  --schist-1: #2a2f39;
+  --schist-2: #171a20;
+  --radius: 4px;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+body.overview { background: var(--vscode-sideBar-background); }
+button, select { font: inherit; color: inherit; }
+:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
+.muted { color: var(--vscode-descriptionForeground); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+[hidden] { display: none !important; }
+
+/* ---- buttons & chips ------------------------------------------------------ */
+.btn {
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  padding: 4px 11px; border-radius: 2px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.btn.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.btn.primary:hover { background: var(--vscode-button-hoverBackground); }
+.chip {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 3px; font-weight: 700; font-size: 12px; line-height: 1;
+}
+.chip.big { min-width: 38px; height: 38px; font-size: 20px; font-family: var(--serif); }
+.link { background: none; border: 0; padding: 0; color: var(--vscode-textLink-foreground); cursor: pointer; }
+.link:hover { text-decoration: underline; }
+.icon { background: none; border: 0; font-size: 20px; line-height: 1; cursor: pointer; color: var(--vscode-descriptionForeground); padding: 2px 6px; }
+.icon:hover { color: var(--vscode-foreground); }
+.note {
+  border-left: 2px solid var(--gold); padding: 4px 10px; margin: 10px 0;
+  color: var(--vscode-descriptionForeground); background: var(--vscode-textBlockQuote-background);
+}
+
+/* ======================================================================== */
+/* SIDEBAR OVERVIEW                                                         */
+/* ======================================================================== */
+body.overview #app { padding: 12px 14px 20px; }
+.overview h2 { font: 600 17px/1.3 var(--serif); margin: 6px 0 8px; }
+.overview h3 { font-size: 11px; font-weight: 600; margin: 20px 0 8px; color: var(--vscode-descriptionForeground); letter-spacing: .02em; }
+.overview p { margin: 0 0 10px; line-height: 1.5; }
+.empty .btn { margin-top: 6px; }
+.top { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+
+/* The hallmark: a stamp like the one on assayed gold. */
+.hallmark {
+  width: 96px; height: 96px; border-radius: 50%; position: relative;
+  display: grid; place-items: center; align-content: center;
+  border: 2px solid var(--g); box-shadow: inset 0 0 0 5px var(--vscode-sideBar-background), inset 0 0 0 6px var(--g);
+}
+.hallmark .grade {
+  position: absolute; top: -6px; right: -6px; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--g); color: var(--gi); font: 700 17px/1 var(--serif);
+}
+.hallmark .score { font: 600 34px/1 var(--serif); font-variant-numeric: lining-nums; }
+.hallmark .score small { font-size: 12px; color: var(--vscode-descriptionForeground); margin-left: 1px; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: 12px; }
+.facts dt { color: var(--vscode-descriptionForeground); }
+.facts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+.stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--vscode-input-background); gap: 1px; }
+.stack i { display: block; min-width: 2px; }
+.c0 { background: #c0584f; } .c1 { background: #c98a3b; } .c2 { background: #8a7fc7; } .c3 { background: #6c8ea8; }
+body.cb .c0 { background: #d55e00; } body.cb .c1 { background: #e69f00; } body.cb .c2 { background: #cc79a7; } body.cb .c3 { background: #56b4e9; }
+.legend { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 12px; }
+.legend b { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+
+.hot { list-style: none; padding: 0; margin: 0; }
+.hot-item {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; text-align: left;
+  background: none; border: 0; padding: 5px 4px; border-radius: 3px; cursor: pointer;
+}
+.hot-item:hover { background: var(--vscode-list-hoverBackground); }
+.hot-item .path { overflow: hidden; }
+.hot-item .path small { display: block; color: var(--vscode-descriptionForeground); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hot-item .debt { font-size: 12px; color: var(--vscode-descriptionForeground); font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; }
+.scan { margin-bottom: 12px; }
+.progress { height: 3px; background: var(--vscode-input-background); border-radius: 2px; overflow: hidden; margin: 6px 0 10px; }
+.progress i { display: block; height: 100%; background: var(--gold); transition: width .2s; }
+
+/* ======================================================================== */
+/* PYRAMID PANEL                                                            */
+/* ======================================================================== */
+body.pyramid #app { display: flex; flex-direction: column; height: 100vh; }
+.toolbar {
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border, transparent));
+}
+.spacer { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--vscode-input-border, var(--vscode-widget-border, #8884)); border-radius: 3px; overflow: hidden; }
+.seg button { background: none; border: 0; padding: 4px 11px; cursor: pointer; color: var(--vscode-descriptionForeground); }
+.seg button[aria-checked="true"] { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.metric { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--vscode-descriptionForeground); }
+select { background: var(--vscode-dropdown-background); border: 1px solid var(--vscode-dropdown-border); padding: 3px 4px; border-radius: 2px; }
+select:disabled { opacity: .5; }
+.mini-mark { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
+.mini-mark b { font: 600 16px/1 var(--serif); }
+
+.body { flex: 1; display: flex; min-height: 0; }
+.stage { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+.gl { position: absolute; inset: 0; outline: none;
+  background: radial-gradient(120% 90% at 50% 20%, var(--schist-1) 0%, var(--schist-2) 70%); }
+.gl:focus-visible { box-shadow: inset 0 0 0 1px var(--gold); }
+.gl canvas { width: 100% !important; height: 100% !important; display: block; cursor: grab; }
+.scanbar { position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 3; background: transparent; }
+.scanbar i { display: block; height: 100%; background: var(--gold); transition: width .25s; box-shadow: 0 0 8px var(--gold); }
+.legendbar {
+  position: absolute; left: 12px; bottom: 10px; z-index: 2; display: flex; gap: 5px; align-items: center; flex-wrap: wrap;
+  font-size: 11px; padding: 5px 8px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--vscode-editor-background) 82%, transparent); backdrop-filter: blur(4px);
+}
+.legendbar > span:not(.chip) { margin-left: 6px; color: var(--vscode-descriptionForeground); }
+.stripes-key::before {
+  content: ""; display: inline-block; width: 12px; height: 10px; margin-right: 5px; vertical-align: -1px; border-radius: 2px;
+  background: repeating-linear-gradient(45deg, #888 0 3px, transparent 3px 6px); border: 1px solid #888;
+}
+.notice { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; pointer-events: none; text-align: center; }
+.notice > * { pointer-events: auto; background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-editorWidget-border, transparent); padding: 16px 20px; border-radius: var(--radius); }
+.notice p { margin: 0 0 10px; }
+.notice.corner { inset: auto 12px auto auto; top: 10px; place-items: start end; }
+.notice.corner > * { padding: 6px 10px; font-size: 12px; }
+.notice.corner p { margin: 0; }
+
+.tip {
+  position: absolute; z-index: 4; max-width: 340px; pointer-events: none; font-size: 12px; line-height: 1.45;
+  background: var(--vscode-editorHoverWidget-background); color: var(--vscode-editorHoverWidget-foreground);
+  border: 1px solid var(--vscode-editorHoverWidget-border); border-radius: var(--radius); padding: 8px 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .28);
+}
+.tip-head { display: flex; gap: 7px; align-items: center; margin-bottom: 2px; }
+.tip-path { color: var(--vscode-descriptionForeground); word-break: break-all; margin-bottom: 4px; }
+.tip-top { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--vscode-editorHoverWidget-border); }
+
+/* treemap */
+.treemap { position: absolute; inset: 0; padding: 0; overflow: hidden; }
+.treemap svg { display: block; }
+.treemap text { font-size: 11px; pointer-events: none; }
+.treemap text.dir { fill: var(--vscode-descriptionForeground); }
+.treemap g.leaf { cursor: pointer; }
+.treemap g.leaf:hover rect:first-child { filter: brightness(1.12); }
+.treemap g.sel rect:first-child { stroke: var(--gold); stroke-width: 2.5; }
+
+/* list */
+.list { position: absolute; inset: 0; overflow: auto; }
+.list table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.list th { position: sticky; top: 0; background: var(--vscode-editor-background); text-align: left; padding: 0; z-index: 1;
+  border-bottom: 1px solid var(--vscode-panel-border, #8884); }
+.list th button { width: 100%; text-align: inherit; background: none; border: 0; padding: 7px 10px; cursor: pointer; font-weight: 600; color: var(--vscode-descriptionForeground); }
+.list th.num button { text-align: right; }
+.list td { padding: 5px 10px; border-bottom: 1px solid var(--vscode-editorGroup-border, #8882); }
+.list tr { cursor: pointer; }
+.list tbody tr:hover { background: var(--vscode-list-hoverBackground); }
+.list tr.sel { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.path { font-family: var(--vscode-editor-font-family); word-break: break-all; }
+
+/* drawer */
+.drawer {
+  width: min(400px, 46%); flex: none; overflow: auto; padding: 14px 16px 24px;
+  border-left: 1px solid var(--vscode-panel-border, var(--vscode-widget-border, #8884));
+  background: var(--vscode-sideBar-background);
+}
+.d-head { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.d-title b { display: block; font-size: 14px; word-break: break-all; }
+.d-title small { color: var(--vscode-descriptionForeground); word-break: break-all; }
+.d-stats { margin: 10px 0; }
+.drawer h3 { font-size: 11px; font-weight: 600; color: var(--vscode-descriptionForeground); margin: 20px 0 6px; }
+.fns { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fns th { text-align: left; font-weight: 600; color: var(--vscode-descriptionForeground); padding: 3px 4px; }
+.fns td { padding: 3px 4px; border-top: 1px solid var(--vscode-editorGroup-border, #8882); }
+.fns tbody tr { cursor: pointer; }
+.fns tbody tr:hover { background: var(--vscode-list-hoverBackground); }
+.fns td.fn { font-family: var(--vscode-editor-font-family); word-break: break-all; }
+.findings { list-style: none; padding: 0; margin: 0; }
+.finding { padding: 8px 0; border-top: 1px solid var(--vscode-editorGroup-border, #8882); }
+.finding p { margin: 4px 0; line-height: 1.45; }
+.f-head { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.sev { font-size: 11px; padding: 1px 6px; border-radius: 3px; color: #fff; }
+.sev.critical { background: #c9453f; } .sev.major { background: #c97a2f; } .sev.minor { background: #7d7440; } .sev.info { background: #4a74b8; }
+body.cb .sev.critical { background: #d55e00; } body.cb .sev.major { background: #b07800; } body.cb .sev.info { background: #0072b2; }
+.finding details summary { cursor: pointer; font-size: 12px; color: var(--vscode-textLink-foreground); }
+.finding details p, .finding details li { color: var(--vscode-descriptionForeground); font-size: 12px; }
+.finding details ul { padding-left: 18px; margin: 4px 0; }
+
+@media (max-width: 640px) {
+  .drawer { position: absolute; right: 0; top: 0; bottom: 0; width: 100%; z-index: 5; }
+  .metric span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress i, .scanbar i { transition: none; }
+}

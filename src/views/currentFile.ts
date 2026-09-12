@@ -36,7 +36,13 @@ export class CurrentFileView implements vscode.WebviewViewProvider {
   public static readonly viewType = 'kasauti.currentFile';
   private view: vscode.WebviewView | undefined;
 
-  constructor(private readonly store: ResultStore, private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly store: ResultStore,
+    private readonly extensionUri: vscode.Uri,
+    /** v0.2.0: the last real editor. Reading vscode.window.activeTextEditor
+     *  here blanked this panel whenever the user clicked into the pyramid. */
+    private readonly activeDoc: () => vscode.TextDocument | undefined,
+  ) {}
 
   resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
@@ -64,9 +70,9 @@ export class CurrentFileView implements vscode.WebviewViewProvider {
   }
 
   private payload(): Payload {
-    const ed = vscode.window.activeTextEditor;
-    if (!ed) return { reason: 'Open a file to see its quality.', symbols: [], findings: [] };
-    const r: FileRecord | undefined = this.store.get(ed.document.uri.toString());
+    const doc = this.activeDoc();
+    if (!doc) return { reason: 'Open a file to see its quality.', symbols: [], findings: [] };
+    const r: FileRecord | undefined = this.store.get(doc.uri.toString());
     if (!r) return { reason: 'KASAUTI has not analysed this file yet.', symbols: [], findings: [] };
     if (r.analysis.tier === 3) {
       return { reason: `Skipped: ${r.analysis.skipReason ?? 'not a source file'}.`, symbols: [], findings: [] };

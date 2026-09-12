@@ -158,6 +158,28 @@ test('layout: floors carry a meaningful label and the biggest tier is the base',
   assert.ok(l.floors.every((f) => f.label.length > 0), 'every floor is labelled');
 });
 
+test('layout: a clean workspace still has volume (v0.2.0 regression)', () => {
+  // Reported from a real editor: a project with zero technical debt rendered
+  // as a bare plate, because every block's height came from a metric that was
+  // zero everywhere. Clean code should look like a finished pyramid.
+  const clean = layoutPyramid([...Array(9)].map((_, i) => ({
+    key: 'k' + i, path: `java/f${i}.java`, sloc: 20 + i * 8, value: 0,
+  })));
+  assert.ok(clean.blocks.every((b) => b.h > 0.05), 'clean files must still be visible blocks');
+  const heights = new Set(clean.blocks.map((b) => b.h.toFixed(4)));
+  assert.equal(heights.size, 1, 'with nothing to compare, every block is the same height');
+
+  // One file with debt must still stand out from files without.
+  const mixed = layoutPyramid([
+    { key: 'a', path: 'src/a.ts', sloc: 100, value: 0 },
+    { key: 'b', path: 'src/b.ts', sloc: 100, value: 120 },
+    { key: 'c', path: 'test/c.ts', sloc: 100, value: 0 },
+  ]);
+  const withDebt = mixed.blocks.find((b) => b.key === 'b')!;
+  const without = mixed.blocks.find((b) => b.key === 'a')!;
+  assert.ok(withDebt.h > without.h, 'a file with debt must be taller than a clean one');
+});
+
 test('layout: an empty workspace produces nothing, one file still produces a floor', () => {
   assert.deepEqual(layoutPyramid([]), { blocks: [], floors: [], width: 0, height: 0 });
   const one = layoutPyramid([{ key: 'k', path: 'a.py', sloc: 10, value: 5 }]);

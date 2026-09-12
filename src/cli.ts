@@ -26,7 +26,7 @@ import { ResultStore } from './store';
 import { WorkerPool } from './workerPool';
 import { EMPTY_CONFIG, evaluateGate, mergeThresholds, parsePackageJsonConfig, parseProjectConfig, ProjectConfig, SAMPLE_CONFIG } from './config/projectConfig';
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const DEFAULT_EXCLUDES = new Set(['node_modules', '.git', 'venv', '.venv', '__pycache__', 'dist', 'build', 'out',
   'target', 'bin', 'obj', '.next', 'vendor', 'Pods', '.gradle', 'coverage', '.dart_tool', '_build', '.terraform']);
 

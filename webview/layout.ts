@@ -72,9 +72,20 @@ const CLEARANCE = 0.14;          // share of the pitch left clear above the tall
 const MIN_FLOORS = 3;            // invariant D
 const MAX_FLOORS = 6;            // deep trees merge, so it never becomes a tower
 
-/** Log-scaled height in 0..1: one huge outlier must not flatten everything else. */
+/**
+ * Log-scaled height in 0..1: one huge outlier must not flatten everything else.
+ *
+ * v0.2.0 fix: when NOTHING has a value — a clean workspace with zero technical
+ * debt, which is the state the tool is supposed to reward — every block used to
+ * come out at zero height and the pyramid rendered as a bare plate. A project
+ * with no debt should look like a well-built pyramid, not like an empty one.
+ * So an all-zero workspace gets a uniform, modest block height instead of none.
+ */
+export const FLAT_FRACTION = 0.55;
+
 export function heightFraction(value: number, max: number): number {
-  if (max <= 0 || value <= 0) return 0;
+  if (max <= 0) return FLAT_FRACTION;     // nothing to compare: show even blocks
+  if (value <= 0) return 0;
   return Math.log1p(value) / Math.log1p(max);
 }
 

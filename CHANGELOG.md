@@ -1,5 +1,21 @@
 # Change Log
 
+## 0.2.1 — 12 September 2026
+
+Both fixes came from the first run in a real editor.
+
+### Fixed
+- **The Current File panel went blank and the status bar dropped the file
+  grade whenever you clicked into the pyramid.** VS Code reports no active
+  text editor while focus is in a webview panel, the terminal or a settings
+  tab, and both views read that as "no file open". They now describe the last
+  editor you were actually in, until that file is closed.
+- **A workspace with no technical debt rendered as a bare plate.** Block height
+  came from a metric that was zero everywhere, so every block had no height —
+  the pyramid looked broken precisely when the code was clean. An all-zero
+  workspace now draws even, visible blocks.
+
+
 ## 0.2.0 — 12 September 2026
 
 ### Fixed

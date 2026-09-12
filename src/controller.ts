@@ -61,6 +61,18 @@ export class Controller implements vscode.Disposable, WebviewHost {
   private readonly history: History;
   /** v0.2.0 F5: thresholds the repo asked for, merged under explicit settings. */
   private project: ProjectConfig = EMPTY_CONFIG;
+  /** The last real text editor. See onDidChangeActiveTextEditor for why. */
+  private lastDoc: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document;
+
+  /** The document the views should describe: the focused one, or the last one
+   *  focused if the user is currently in a panel. */
+  activeDocument(): vscode.TextDocument | undefined {
+    const ed = vscode.window.activeTextEditor;
+    if (ed) { this.lastDoc = ed.document; return ed.document; }
+    // Only keep it while it is still open somewhere.
+    if (this.lastDoc && vscode.workspace.textDocuments.includes(this.lastDoc)) return this.lastDoc;
+    return undefined;
+  }
 
   // state
   private scanned = false;
@@ -93,11 +105,11 @@ export class Controller implements vscode.Disposable, WebviewHost {
     this.codeLens.enabled = this.cfg.codeLens;
     this.codeLens.mode = this.cfg.codeLensMode;
     this.codeLens.maxSymbols = this.cfg.codeLensMaxSymbols;
-    this.statusBar = new StatusBarView(this.store);
+    this.statusBar = new StatusBarView(this.store, () => this.activeDocument());
     this.issues = new IssuesTree(this.store);
     this.overview = new OverviewView(ctx.extensionUri, this);
     this.pyramid = new PyramidPanel(ctx.extensionUri, this);
-    this.currentFile = new CurrentFileView(this.store, ctx.extensionUri);
+    this.currentFile = new CurrentFileView(this.store, ctx.extensionUri, () => this.activeDocument());
 
     this.subs.push(
       this.log, this.diagnostics, this.statusBar, this.overview, this.pyramid,
@@ -218,10 +230,20 @@ export class Controller implements vscode.Disposable, WebviewHost {
       vscode.workspace.onDidOpenTextDocument((d) => this.analyzeDocument(d, 'high')),
       vscode.workspace.onDidSaveTextDocument((d) => { if (!this.cfg.liveAnalysis) this.analyzeDocument(d, 'high'); }),
       vscode.window.onDidChangeActiveTextEditor((ed) => {
-        if (ed && !this.store.get(ed.document.uri.toString())) this.analyzeDocument(ed.document, 'high');
+        // VS Code reports `undefined` whenever focus moves to a webview panel,
+        // the terminal or a settings tab. Treating that as "no file" made the
+        // status bar drop the file grade and blanked the Current File panel
+        // the moment you clicked the pyramid. Remember the last real editor
+        // instead: the file you were last looking at is still the file you
+        // mean. Cleared by onDidCloseTextDocument below when it really goes.
+        if (!ed) return;
+        this.lastDoc = ed.document;
+        if (!this.store.get(ed.document.uri.toString())) this.analyzeDocument(ed.document, 'high');
         this.statusBar.refresh(this.scanned);
+        this.currentFile.refresh();
       }),
       vscode.workspace.onDidCloseTextDocument((d) => {
+        if (this.lastDoc === d) this.lastDoc = undefined;
         // Unsaved scratch buffers have no file on disk: forget them on close.
         if (d.uri.scheme === 'untitled') this.store.remove(d.uri.toString());
       }),

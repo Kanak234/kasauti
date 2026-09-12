@@ -2,7 +2,7 @@
   "name": "kasauti",
   "displayName": "KASAUTI — Code Quality Visualizer",
   "description": "Industry-standard code quality metrics (cyclomatic, cognitive, Halstead, maintainability, duplication) with an A–E grade and a live 3D pyramid of your codebase. Offline. 24 languages fully, every other language partially.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "KANAKPRABHAKAR",
   "author": {
     "name": "Kanak Prabhakar"

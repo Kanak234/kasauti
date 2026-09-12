@@ -67,7 +67,12 @@ export class CodeLensView implements vscode.CodeLensProvider {
 export class StatusBarView implements vscode.Disposable {
   private readonly item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
 
-  constructor(private readonly store: ResultStore) {
+  constructor(
+    private readonly store: ResultStore,
+    /** v0.2.0: the last real editor, not vscode.window.activeTextEditor, which
+     *  goes undefined as soon as a webview panel takes focus. */
+    private readonly activeDoc: () => vscode.TextDocument | undefined,
+  ) {
     this.item.command = 'kasauti.openPyramid';
     this.item.name = 'KASAUTI code quality';
   }
@@ -77,8 +82,8 @@ export class StatusBarView implements vscode.Disposable {
   private busy = false;
 
   refresh(scanned: boolean): void {
-    const ed = vscode.window.activeTextEditor;
-    const r = ed ? this.store.get(ed.document.uri.toString()) : undefined;
+    const doc = this.activeDoc();
+    const r = doc ? this.store.get(doc.uri.toString()) : undefined;
     if (this.busy) {
       this.item.text = '$(sync~spin) KASAUTI …';
       this.item.tooltip = 'KASAUTI is analysing.';

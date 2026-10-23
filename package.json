@@ -7,7 +7,7 @@
   "author": {
     "name": "Kanak Prabhakar"
   },
-  "license": "MIT",
+  "license": "UNLICENSED",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.85.0"

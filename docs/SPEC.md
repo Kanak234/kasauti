@@ -710,3 +710,28 @@ undeclared check stays silent rather than flagging every import.
 - The VS Code language-model route (`vscode-lm`) is untested.
 - Windows/macOS (Python discovery via `py`, CRLF apply) — Linux only.
 - No benchmark set yet for detection/false-positive rates (planned `bench/`).
+
+---
+
+# PART I — v2.1 Code Map (21 Nov 2026)
+
+**Why:** Kanak's feedback after 2.0 — the 3D pyramid did not read well. Request:
+a view like NeuralSchema's. **Decision OD-16:** the Code Map becomes the
+default view; the pyramid stays as an option (no work thrown away).
+
+**What:** force-directed 2D canvas graph (webview/schema.ts) built from
+webview/schemaGraph.ts: root → folders → files (→ functions on demand), import
+edges resolved from specifiers recorded by engine/imports.ts. Crawl animation
+(BFS/DFS) with NeuralSchema's control set. Spatial-grid repulsion (O(n)),
+simulation cools and the loop sleeps when idle. Unresolvable imports are not
+drawn (a missing edge is better than a false one).
+
+**Verified:** 3 new unit tests (import extraction for Python/TS/Java/C++,
+resolution across languages incl. relative paths and Java packages, graph +
+crawl coverage). Rendered in headless Chrome against KASAUTI's own 100 files
+(119 nodes, 199 import links; 929 nodes with functions): no console errors,
+framing, label collision avoidance, hover tooltip, function toggle and zoom
+checked on screenshots (docs/code-map.png).
+
+**Not verified:** inside a real VS Code webview (only a browser harness with
+the real bundle); very large repos (> 3,000 files) for frame rate.

@@ -1,7 +1,9 @@
 /* =============================================================================
  * KASAUTI — webview/main.ts  (the Pyramid panel)
  * -----------------------------------------------------------------------------
- * WHAT:  The showpiece view with three ways to see the same data:
+ * WHAT:  The showpiece view with four ways to see the same data:
+ *          Code Map — v2.1 default: NeuralSchema-style graph of folders, files,
+ *                    functions and imports with a crawler animation (schema.ts)
  *          Pyramid — 3D stepped pyramid: floors = folder depth, blocks = files,
  *                    color = grade, height = chosen metric (Three.js/WebGL)
  *          Treemap — 2D rectangles sized by lines of code (fallback when WebGL
@@ -26,22 +28,26 @@ import type { Grade } from '../src/engine/types';
 import { GOLD, esc, fill, formatDebt, gradeColor, gradeInk, h, loadState, onHost, prefersReducedMotion, saveState, send, setColorBlind } from './common';
 import { matchesFilter } from './filter';
 import { layoutPyramid, PyramidLayout } from './layout';
+import { SchemaView } from './schema';
 
 /* =============================================================================
  * State
  * ========================================================================== */
-type View = 'pyramid' | 'treemap' | 'list';
+type View = 'schema' | 'pyramid' | 'treemap' | 'list';
 type Metric = 'debt' | 'cc' | 'cog' | 'dup';
 const METRICS: Array<[Metric, string]> = [
   ['debt', 'Technical debt'], ['cc', 'Cyclomatic complexity'], ['cog', 'Cognitive complexity'], ['dup', 'Duplicated lines'],
 ];
 const metricValue = (f: UiFile, m: Metric) => (m === 'debt' ? f.debt : m === 'cc' ? f.maxCC : m === 'cog' ? f.maxCog : f.dupLines);
 
-const saved = loadState<{ view: View; metric: Metric; filter?: string; camera?: number[]; collapsed?: string[] }>();
+const saved = loadState<{ view: View; metric: Metric; filter?: string; camera?: number[]; collapsed?: string[]; v21?: boolean }>();
+// v2.1: the Code Map replaces the pyramid as the default. Someone who had the
+// pyramid open from 2.0 is moved to the map ONCE; after that their choice sticks.
+if (saved && !saved.v21 && saved.view === 'pyramid') saved.view = 'schema';
 const state = {
   files: new Map<string, UiFile>(),
   summary: undefined as UiSummary | undefined,
-  view: (saved?.view ?? 'pyramid') as View,
+  view: (saved?.view ?? 'schema') as View,
   metric: (saved?.metric ?? 'debt') as Metric,
   selected: undefined as string | undefined,
   detail: undefined as UiDetail | undefined,
@@ -62,7 +68,7 @@ const topFolder = (p: string) => { const i = p.indexOf('/'); return i < 0 ? '' :
 
 const visibleFiles = () => [...state.files.values()]
   .filter((f) => f.tier !== 3 && !state.collapsed.has(topFolder(f.path)) && matchesFilter(f, state.filter));
-const persist = () => saveState({ view: state.view, metric: state.metric, filter: state.filter, camera: state.camera, collapsed: [...state.collapsed] });
+const persist = () => saveState({ view: state.view, metric: state.metric, filter: state.filter, camera: state.camera, collapsed: [...state.collapsed], v21: true });
 
 /* =============================================================================
  * DOM skeleton
@@ -80,7 +86,7 @@ stage.append(progress, tooltip, legend, notice);
 
 /* ---- toolbar ---------------------------------------------------------------- */
 const viewSeg = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'View' });
-for (const [v, label] of [['pyramid', 'Pyramid'], ['treemap', 'Treemap'], ['list', 'List']] as Array<[View, string]>) {
+for (const [v, label] of [['schema', 'Code Map'], ['pyramid', 'Pyramid'], ['treemap', 'Treemap'], ['list', 'List']] as Array<[View, string]>) {
   const b = h('button', { type: 'button', role: 'radio', 'data-v': v }, label);
   b.addEventListener('click', () => setView(v));
   viewSeg.append(b);
@@ -94,7 +100,7 @@ const worstBtn = h('button', { type: 'button', class: 'btn' }, 'Worst file');
 const hallmark = h('div', { class: 'mini-mark', 'aria-live': 'polite' });
 const scanBtn = h('button', { type: 'button', class: 'btn' }, 'Rescan');
 scanBtn.addEventListener('click', () => send({ type: 'command', id: state.summary?.scanning ? 'cancel' : 'scan' }));
-resetBtn.addEventListener('click', () => pyramid?.frame(true));
+resetBtn.addEventListener('click', () => (state.view === 'schema' ? schema.frame() : pyramid?.frame(true)));
 worstBtn.addEventListener('click', () => {
   const worst = visibleFiles().sort((a, b) => b.debt - a.debt)[0];
   if (worst) select(worst.key, true);
@@ -523,6 +529,17 @@ function getPyramid(): Pyramid | undefined {
 }
 
 /* =============================================================================
+ * CODE MAP (v2.1) — see schema.ts
+ * ========================================================================== */
+const schema = new SchemaView({
+  select: (key) => select(key, false),
+  open: (key, line) => send({ type: 'open', key, line }),
+  selected: () => state.selected,
+  tip: (key, x, y, text) => showTip(key, x, y, text),
+});
+schema.el.addEventListener('keydown', (ev) => keyNav(ev as KeyboardEvent));
+
+/* =============================================================================
  * TREEMAP (2D SVG)
  * ========================================================================== */
 const treeEl = h('div', { class: 'treemap' });
@@ -618,10 +635,11 @@ function renderList(): void {
 /* =============================================================================
  * Tooltip, selection, keyboard
  * ========================================================================== */
-function showTip(key: string | undefined, x: number, y: number): void {
+function showTip(key: string | undefined, x: number, y: number, text?: string): void {
   const f = key ? state.files.get(key) : undefined;
-  if (!f) { tooltip.hidden = true; return; }
-  fill(tooltip, 
+  if (!f && !text) { tooltip.hidden = true; return; }
+  if (!f) fill(tooltip, h('div', {}, text!));       // v2.1: Code Map folders / functions
+  else fill(tooltip, 
     h('div', { class: 'tip-head' }, h('span', { class: 'chip', style: `background:${gradeColor(f.grade)};color:${gradeInk(f.grade)}` }, f.grade), h('b', {}, f.path.split('/').pop()!)),
     h('div', { class: 'tip-path' }, f.path),
     h('div', {}, `Score ${f.score}/100, debt ${formatDebt(f.debt)}, ${f.sloc.toLocaleString('en')} lines`),
@@ -641,7 +659,8 @@ function select(key: string, fly: boolean): void {
   state.selected = key;
   send({ type: 'detail', key });
   pyramid?.selectionChanged();
-  if (fly) pyramid?.focusKey(key);
+  schema.selectionChanged();
+  if (fly) { pyramid?.focusKey(key); if (state.view === 'schema') schema.focusKey(key); }
   if (state.view === 'treemap') renderTreemap();
   if (state.view === 'list') renderList();
 }
@@ -668,6 +687,7 @@ function closeDrawer(): void {
   state.selected = undefined;
   state.detail = undefined;
   pyramid?.selectionChanged();
+  schema.selectionChanged();
   if (state.view === 'treemap') renderTreemap();
   if (state.view === 'list') renderList();
 }
@@ -719,7 +739,7 @@ function renderDrawer(d: UiDetail): void {
 function renderChrome(): void {
   viewSeg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.v === state.view)));
   metricSel.disabled = state.view !== 'pyramid';
-  resetBtn.hidden = worstBtn.hidden = state.view !== 'pyramid';
+  resetBtn.hidden = worstBtn.hidden = state.view !== 'pyramid' && state.view !== 'schema';
   const s = state.summary;
   if (s && (s.scanned || state.files.size)) {
     hallmark.replaceChildren(
@@ -734,7 +754,7 @@ function renderChrome(): void {
     ...(['A', 'B', 'C', 'D', 'E'] as Grade[]).map((g) => h('span', { class: 'chip', style: `background:${gradeColor(g)};color:${gradeInk(g)}` }, g)),
     h('span', {}, state.view === 'pyramid' ? `Height: ${METRICS.find((m) => m[0] === state.metric)![1].toLowerCase()}` : state.view === 'treemap' ? 'Area: lines of code' : ''),
     state.view !== 'list' ? h('span', { class: 'stripes-key' }, 'Striped: partial analysis') : undefined);
-  legend.hidden = state.view === 'list';
+  legend.hidden = state.view === 'list' || state.view === 'schema';   // the Code Map draws its own legend
 }
 
 function renderAll(changed: Set<string>): void {
@@ -762,8 +782,9 @@ function renderAll(changed: Set<string>): void {
   // covering the treemap.
   notice.classList.toggle('corner', files.length > 0);
   notice.replaceChildren(...(msgs.length ? [h('div', {}, ...msgs)] : []));
-  for (const el of [pyramid?.el, treeEl, listEl]) el?.remove();
-  if (view === 'pyramid' && pyramid) { stage.prepend(pyramid.el); pyramid.setData(files, state.metric, changed); }
+  for (const el of [pyramid?.el, treeEl, listEl, schema.el]) el?.remove();
+  if (view === 'schema') { stage.prepend(schema.el); schema.setData(files, changed); }
+  else if (view === 'pyramid' && pyramid) { stage.prepend(pyramid.el); pyramid.setData(files, state.metric, changed); }
   else if (view === 'treemap') { stage.prepend(treeEl); renderTreemap(); }
   else { stage.prepend(listEl); renderList(); }
 }
@@ -773,7 +794,7 @@ function renderAll(changed: Set<string>): void {
 let pendingChanged = new Set<string>();
 let renderTimer: number | undefined;
 function scheduleRender(changed: Set<string>): void {
-  if (state.view === 'pyramid') { renderAll(changed); return; }
+  if (state.view === 'pyramid' || state.view === 'schema') { renderAll(changed); return; }
   changed.forEach((k) => pendingChanged.add(k));
   if (renderTimer !== undefined) return;
   renderTimer = window.setTimeout(() => { renderTimer = undefined; const c = pendingChanged; pendingChanged = new Set(); renderAll(c); }, 300);

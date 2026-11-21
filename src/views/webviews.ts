@@ -148,7 +148,7 @@ export class PyramidPanel implements vscode.Disposable {
       if (focusKey && this.ready) this.focus(focusKey);
       return;
     }
-    this.panel = vscode.window.createWebviewPanel('kasauti.pyramid', 'KASAUTI Pyramid', vscode.ViewColumn.Beside, {
+    this.panel = vscode.window.createWebviewPanel('kasauti.pyramid', 'KASAUTI Code Map', vscode.ViewColumn.Beside, {
       enableScripts: true,
       retainContextWhenHidden: true,   // keep the 3D scene alive when tab hidden
       localResourceRoots: [vscode.Uri.joinPath(this.extUri, 'dist')],
@@ -162,7 +162,7 @@ export class PyramidPanel implements vscode.Disposable {
   private onMessage(m: WebviewMessage): void {
     if (m.type === 'ready') {
       this.ready = true;
-      const files = this.host.store.workspaceFiles().map(toUiFile);
+      const files = this.host.store.workspaceFiles().map((r) => toUiFile(r, this.host.store));
       this.post({ type: 'init', files, summary: summary(this.host.store, this.host.isScanned(), this.host.scanProgress()), colorBlind: this.host.colorBlind() });
       if (this.pendingFocus) this.focus(this.pendingFocus);
       return;
@@ -188,7 +188,7 @@ export class PyramidPanel implements vscode.Disposable {
   }
 
   private flush(keys: string[], removed: string[]): void {
-    const upsert = keys.map((k) => this.host.store.get(k)).filter((r) => r && r.inWorkspace).map((r) => toUiFile(r!));
+    const upsert = keys.map((k) => this.host.store.get(k)).filter((r) => r && r.inWorkspace).map((r) => toUiFile(r!, this.host.store));
     this.post({ type: 'files', upsert, remove: removed, summary: summary(this.host.store, this.host.isScanned(), this.host.scanProgress()) });
   }
 

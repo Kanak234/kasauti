@@ -39,6 +39,10 @@ test('pyramid panel: without WebGL it falls back to the treemap and says why', (
   const { doc, sent, post } = boot('webview.js', 'pyramid');
   same(sent[0], { type: 'ready' });
   post({ type: 'init', files: [file(0, 'A'), file(1, 'B'), file(2, 'E', { tier: 2, lang: 'Pascal' })], summary: summary(), colorBlind: false });
+  // v2.1: the Code Map is the default view now; the pyramid is one click away.
+  assert.ok(doc.querySelector('.schema'), 'Code Map is the default view');
+  assert.match(doc.querySelector('.schema-bar')!.textContent!, /Breadth-first/);
+  (doc.querySelector('.seg button[data-v="pyramid"]') as HTMLButtonElement).click();
   assert.match(doc.querySelector('.notice')!.textContent!, /3D view unavailable/);
   const leaves = doc.querySelectorAll('.treemap g.leaf');
   assert.equal(leaves.length, 3);

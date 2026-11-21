@@ -99,6 +99,8 @@ export interface FileAnalysis {
    *  the same parse tree. Unlike metrics these are already decisions, but they
    *  depend on no threshold, so caching them with the analysis is still safe. */
   audit?: Finding[];
+  /** v2.1: raw import/include specifiers (engine/imports.ts), for the Code Map's import edges. */
+  imports?: string[];
 }
 
 /** One problem the user can act on. Created by rules.ts (and duplication). */

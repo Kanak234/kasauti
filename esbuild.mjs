@@ -42,7 +42,8 @@ function copyWasm() {
 // WHY the alias: web-tree-sitter's ESM build relies on `import.meta.url`, which
 // does not exist in a CommonJS bundle. Its official .cjs build works as-is.
 const alias = { 'web-tree-sitter': './node_modules/web-tree-sitter/tree-sitter.cjs' };
-const common = { bundle: true, minify: production, sourcemap: !production, logLevel: 'info', alias };
+// v2.1: `.svg` imports become strings (the KP watermark inside the Code Map).
+const common = { bundle: true, minify: production, sourcemap: !production, logLevel: 'info', alias, loader: { '.svg': 'text' } };
 
 await Promise.all([
   esbuild.build({ ...common, entryPoints: ['src/extension.ts'], outfile: 'dist/extension.js',
@@ -71,5 +72,5 @@ fs.copyFileSync('webview/style.css', 'dist/webview.css');
 if (withTests) {
   const tests = fs.readdirSync('test').filter((f) => f.endsWith('.test.ts')).map((f) => path.join('test', f));
   await esbuild.build({ bundle: true, sourcemap: true, entryPoints: tests, outdir: 'dist-test',
-    platform: 'node', format: 'cjs', target: 'node18', external: ['vscode', 'jsdom', 'ajv', 'ajv-draft-04', 'ajv-formats'], logLevel: 'warning', alias });
+    platform: 'node', format: 'cjs', target: 'node18', external: ['vscode', 'jsdom', 'ajv', 'ajv-draft-04', 'ajv-formats'], logLevel: 'warning', alias, loader: { '.svg': 'text' } });
 }

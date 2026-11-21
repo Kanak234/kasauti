@@ -258,3 +258,46 @@ body.cb .sev.critical { background: #d55e00; } body.cb .sev.major { background: 
                      border-color: var(--vscode-input-border, var(--vscode-descriptionForeground));
                      text-decoration: line-through; }
 .toolbar .chip:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
+
+/* =============================================================================
+ * v2.1 Code Map (webview/schema.ts) — NeuralSchema look: black stage, mono tags,
+ * stats panel top-right, crawl controls bottom, KP watermark bottom-right.
+ * Fixed dark palette on purpose: the glowing graph needs a dark stage in light
+ * themes too (text inside uses its own light colours, contrast ≥ 4.5:1).
+ * ========================================================================== */
+.schema { position: absolute; inset: 0; background: #05070d; overflow: hidden; color: #e6e9f2; }
+.schema-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; outline: none; }
+.schema-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--vscode-focusBorder); }
+.schema-title { position: absolute; left: 18px; top: 14px; pointer-events: none; display: flex; flex-direction: column; gap: 2px; }
+.schema-title b { font-size: 20px; font-weight: 600; letter-spacing: .2px; }
+.schema-title small { font-family: var(--vscode-editor-font-family); font-size: 11px; color: #9aa3b8; }
+.schema-panel { position: absolute; right: 14px; top: 14px; width: 250px; background: rgba(12,15,24,.92); border: 1px solid #262c3b; border-radius: 10px;
+  padding: 10px 12px; font-family: var(--vscode-editor-font-family); font-size: 11.5px; color: #c9cfdd; }
+.schema-panel .srow { display: flex; justify-content: space-between; line-height: 1.7; }
+.schema-panel .srow b { color: #fff; font-weight: 600; }
+.schema-panel .sprog { height: 3px; background: #262c3b; border-radius: 2px; margin: 2px 0 6px; overflow: hidden; }
+.schema-panel .sprog i { display: block; height: 100%; background: linear-gradient(90deg, #4f8cff, #c86bfa); }
+.schema-panel .slog { border-top: 1px solid #262c3b; margin-top: 6px; padding-top: 6px; min-height: 20px; }
+.schema-panel .slog div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.6; color: #aeb5c6; }
+.schema-panel .slog div:last-child { color: #fff; }
+.schema-panel .slog .warn { color: #ff8a95; }
+.schema-panel .slegend { border-top: 1px solid #262c3b; margin-top: 6px; padding-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; }
+.schema-panel .slegend span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.schema-panel .slegend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.schema-panel .slegend i.ln { width: 12px; height: 2px; border-radius: 1px; background: #7c8cff; }
+.schema-panel .slegend i.ring { background: transparent; border: 2px solid; width: 6px; height: 6px; }
+.schema-bar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); width: min(1040px, calc(100% - 28px));
+  background: rgba(12,15,24,.94); border: 1px solid #262c3b; border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.schema-bar .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.schema-bar label { display: flex; align-items: center; gap: 6px; color: #9aa3b8; font-size: 12px; }
+.schema-bar input[type=range] { accent-color: #4f8cff; width: 78px; }
+.schema-bar .scrub { flex: 1; width: auto; }
+.schema-bar .scrub-n { font-family: var(--vscode-editor-font-family); font-size: 11.5px; color: #9aa3b8; min-width: 86px; text-align: right; }
+.schema .sbtn { background: #161b27; color: #e6e9f2; border: 1px solid #2b3244; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+.schema .sbtn:hover { background: #1e2535; }
+.schema .sbtn:focus-visible, .schema .ssel:focus-visible { outline: 2px solid #4f8cff; outline-offset: 1px; }
+.schema .sbtn.toggle[aria-pressed=true] { background: #1b2d52; border-color: #4f8cff; color: #fff; }
+.schema .ssel { background: #161b27; color: #e6e9f2; border: 1px solid #2b3244; border-radius: 6px; padding: 3px 6px; font-size: 12px; }
+.schema-mark { position: absolute; right: 18px; bottom: 104px; display: flex; align-items: center; gap: 6px; color: #7d8598; font-size: 11.5px; pointer-events: none; }
+.schema-mark svg { width: 22px; height: 22px; }
+@media (max-width: 760px) { .schema-panel { width: 200px; font-size: 10.5px; } .schema-mark { display: none; } .schema-title small { display: none; } }

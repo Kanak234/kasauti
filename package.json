@@ -1,8 +1,8 @@
 {
   "name": "kasauti",
   "displayName": "KASAUTI — 360° Code Audit, Proof & Quality Visualizer",
-  "description": "Audit AI-written code from every side: security (injection, secrets), performance (Big-O estimate + measured proof), AI loopholes (hallucinated packages, swallowed errors, stubs), simplifications, and industry quality metrics with an A–E grade and a live 3D pyramid. AI fixes from any model (Ollama, OpenAI, Claude, Nemotron…) are verified before you apply them. MCP server for agents.",
-  "version": "2.0.0",
+  "description": "Audit AI-written code from every side: security (injection, secrets), performance (Big-O estimate + measured proof), AI loopholes (hallucinated packages, swallowed errors, stubs), simplifications, and industry quality metrics with an A–E grade, a live NeuralSchema-style Code Map (folders, files, functions, imports, crawler animation) and a 3D pyramid. AI fixes from any model (Ollama, OpenAI, Claude, Nemotron…) are verified before you apply them. MCP server for agents.",
+  "version": "2.1.0",
   "publisher": "KANAKPRABHAKAR",
   "author": {
     "name": "Kanak Prabhakar"
@@ -39,7 +39,8 @@
     "mcp",
     "ollama",
     "code audit",
-    "refactoring"
+    "refactoring",
+    "dependency graph"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -100,7 +101,7 @@
       },
       {
         "command": "kasauti.openPyramid",
-        "title": "Open Pyramid",
+        "title": "Open Code Map",
         "category": "KASAUTI",
         "icon": "$(graph)"
       },

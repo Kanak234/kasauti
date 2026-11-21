@@ -8,6 +8,12 @@ Everything runs **offline** inside VS Code. No account, no server, no telemetry.
 
 ---
 
+## New in 2.1 — Code Map
+
+![Code Map: KASAUTI's own source as a graph](docs/code-map.png)
+
+The default view is now a **NeuralSchema-style map** of your project: folders, files and (on double-click) functions, plus **import links** between files. Colour is the grade, size is lines of code plus how many files depend on it, and coloured rings mark performance (orange), security (red) and AI-risk (yellow) findings. A **crawler animation** discovers the project node by node (BFS or DFS, adjustable speed and crawler count, follow mode, progress scrubber). A badly graded file that half the project imports stands out immediately — something the pyramid could never show. The 3D pyramid, treemap and list are still one click away.
+
 ## New in 2.0 — "Parakh": audit AI-written code from every side
 
 AI writes code fast; it also leaves loopholes. KASAUTI 2.0 checks code the way a reviewer would — and then **proves** its claims instead of guessing.

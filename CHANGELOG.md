@@ -1,5 +1,17 @@
 # Change Log
 
+## 2.1.0 — 21 November 2026 — Code Map
+
+### Added
+- **Code Map**, the new default view (NeuralSchema-style): a force-directed graph of project → folders → files → functions with **import links** between files (Python, JS/TS, Java/Kotlin/Scala, C/C++, Go). Colour = grade, size = lines of code + how many files import it, coloured rings = performance / security / AI-risk findings.
+- **Crawl animation** like NeuralSchema's Crawl Mode: BFS/DFS, speed, number of crawlers, follow camera, tags, progress scrubber, live stats panel (discovered, frontier, depth, links followed) and a discovery log.
+- Double-click a file to show its functions; click a function to jump to it. Drag nodes, pan, zoom. Live edits flash the file's node gold. KP watermark.
+- Works without WebGL (2D canvas).
+
+### Changed
+- The pyramid is still available as a view; users of 2.0 are moved to the Code Map once. "Open Pyramid" is now "Open Code Map".
+- Engine cache version 2.1.0 (import specifiers are now recorded): the first scan after updating re-analyses every file once.
+
 ## 2.0.0 — 21 November 2026 — "Parakh"
 
 A 360° audit for AI-written code, suggested by Mr. Udhay Ranjan (Dean, CS & IT, AISECT University), folded into KASAUTI instead of a new extension.

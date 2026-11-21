@@ -35,6 +35,12 @@ export interface UiFile {
   /** v0.2.0 F7: distinct rule ids that fired here, so the webview can filter
    *  by rule without shipping every finding to it. */
   rules?: string[];
+  /** v2.1 Code Map: raw import specifiers (resolved to files in the webview). */
+  imp?: string[];
+  /** v2.1 Code Map: the file's functions (capped) with their own grade. */
+  fns?: Array<{ name: string; line: number; grade: Grade; cc: number }>;
+  /** v2.1 Code Map: 360° audit finding counts [performance, security, AI-risk]. */
+  kp?: [number, number, number];
 }
 
 export interface UiSummary {
@@ -77,7 +83,10 @@ export interface UiDetail {
   note?: string;
 }
 
-export function toUiFile(r: FileRecord): UiFile {
+/** Functions shipped per file to the Code Map. More are summarised as "+N". */
+const MAX_FNS = 60;
+
+export function toUiFile(r: FileRecord, store?: ResultStore): UiFile {
   const counts: Record<Severity, number> = { critical: 0, major: 0, minor: 0, info: 0 };
   const rules = new Set<string>();
   let dupLines = 0;
@@ -96,7 +105,27 @@ export function toUiFile(r: FileRecord): UiFile {
     dupLines, counts,
     top: top && top.debtMinutes > 0 ? top.message : undefined,
     rules: rules.size ? [...rules].sort() : undefined,
+    imp: r.analysis.imports?.length ? r.analysis.imports : undefined,
+    fns: codeMapFunctions(r, store),
+    kp: kpCounts(r),
   };
+}
+
+/** [performance, security, AI-risk] KP finding counts, or undefined if none. */
+function kpCounts(r: FileRecord): [number, number, number] | undefined {
+  const c: [number, number, number] = [0, 0, 0];
+  for (const f of r.findings) { const band = f.ruleId.startsWith('KP') ? Number(f.ruleId[2]) : 0; if (band >= 1 && band <= 3) c[band - 1]++; }
+  return c[0] + c[1] + c[2] ? c : undefined;
+}
+
+/** Functions for the Code Map, worst first, with their own grade when the
+ *  store is available (otherwise the file grade stands in). */
+function codeMapFunctions(r: FileRecord, store?: ResultStore): UiFile['fns'] {
+  const fns = r.analysis.functions;
+  if (!fns.length) return undefined;
+  const grades = store ? store.functionScores(r).map((s) => s.grade) : fns.map(() => r.score.grade);
+  return fns.map((f, i) => ({ name: f.name, line: f.startLine, grade: grades[i], cc: f.cyclomatic }))
+    .sort((a, b) => b.cc - a.cc).slice(0, MAX_FNS);
 }
 
 export function summary(store: ResultStore, scanned: boolean, scanning?: { done: number; total: number }): UiSummary {

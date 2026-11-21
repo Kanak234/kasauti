@@ -151,7 +151,7 @@ function render(s: UiSummary): void {
     app.append(h('p', { class: 'muted' }, 'No file has remediation cost. Clean work.'));
   }
 
-  app.append(h('div', { class: 'actions' }, button('Open pyramid', 'pyramid', true), button('Export report', 'export'), button('Rescan', 'scan')));
+  app.append(h('div', { class: 'actions' }, button('Open Code Map', 'pyramid', true), button('Export report', 'export'), button('Rescan', 'scan')));
 }
 
 onHost((m) => {

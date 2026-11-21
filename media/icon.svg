@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- KASAUTI icon (v2.2): same family as VYUHA — dark tile, glowing node graph.
+       The gold path is the touchstone streak (कसौटी); the red ring marks a problem found. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0c1220"/><stop offset="1" stop-color="#05080f"/></linearGradient>
+    <radialGradient id="glowC" r="0.5"><stop offset="0" stop-color="#38e8ff" stop-opacity=".55"/><stop offset="1" stop-color="#38e8ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowG" r="0.5"><stop offset="0" stop-color="#f2c14e" stop-opacity=".7"/><stop offset="1" stop-color="#f2c14e" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glowR" r="0.5"><stop offset="0" stop-color="#ff4d5e" stop-opacity=".65"/><stop offset="1" stop-color="#ff4d5e" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <g stroke="#3d5a80" stroke-width="5" stroke-linecap="round">
+    <path d="M128 128L128 58M128 58L98 34M128 58L158 34M128 128L66 100M66 100L44 70M66 100L36 118M128 128L74 182M74 182L52 214M74 182L96 216M128 128L150 196M150 196L132 226"/>
+  </g>
+  <g stroke="#f2c14e" stroke-width="7" stroke-linecap="round"><path d="M128 128L176 112L208 86"/></g>
+  <g stroke="#3d5a80" stroke-width="5" stroke-linecap="round"><path d="M176 112L200 140M150 196L184 210"/></g>
+  <circle cx="128" cy="128" r="42" fill="url(#glowC)"/>
+  <circle cx="208" cy="86" r="26" fill="url(#glowG)"/>
+  <circle cx="150" cy="196" r="30" fill="url(#glowR)"/>
+  <g fill="#38e8ff">
+    <circle cx="128" cy="58" r="11"/><circle cx="98" cy="34" r="8"/><circle cx="158" cy="34" r="8"/>
+    <circle cx="66" cy="100" r="11"/><circle cx="44" cy="70" r="8"/><circle cx="36" cy="118" r="8"/>
+    <circle cx="74" cy="182" r="11"/><circle cx="52" cy="214" r="8"/><circle cx="96" cy="216" r="8"/>
+    <circle cx="200" cy="140" r="8"/><circle cx="184" cy="210" r="8"/><circle cx="132" cy="226" r="8"/>
+  </g>
+  <circle cx="128" cy="128" r="18" fill="#35f0a8"/>
+  <circle cx="176" cy="112" r="11" fill="#f2c14e"/><circle cx="208" cy="86" r="13" fill="#f2c14e"/>
+  <circle cx="150" cy="196" r="12" fill="#38e8ff"/>
+  <circle cx="150" cy="196" r="19" fill="none" stroke="#ff4d5e" stroke-width="5"/>
+</svg>

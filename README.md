@@ -2,17 +2,17 @@
 
 # KASAUTI — 360° Code Audit, Proof & Quality Visualizer
 
-**कसौटी** is the touchstone a goldsmith rubs metal against to judge its purity. This extension does the same for code: it measures your codebase against published industry metrics, gives every file a grade from **A to E**, and shows the whole project as a **3D pyramid you can walk around** — updating live as you type.
+**कसौटी** is the touchstone a goldsmith rubs metal against to judge its purity. This extension does the same for code: it measures your codebase against published industry metrics, gives every file a grade from **A to E**, and shows the whole project as a **3D Code Map you can fly through** — updating live as you type.
 
 Everything runs **offline** inside VS Code. No account, no server, no telemetry. The only network calls are the optional ones you switch on yourself: an AI provider you choose for fixes, and the PyPI/npm package check (both off by default).
 
 ---
 
-## New in 2.1 — Code Map
+## New in 2.2 — a 3D Code Map that explains itself
 
-![Code Map: KASAUTI's own source as a graph](docs/code-map.png)
+![Code Map with a file's problems explained](docs/code-map.png)
 
-The default view is now a **NeuralSchema-style map** of your project: folders, files and (on double-click) functions, plus **import links** between files. Colour is the grade, size is lines of code plus how many files depend on it, and coloured rings mark performance (orange), security (red) and AI-risk (yellow) findings. A **crawler animation** discovers the project node by node (BFS or DFS, adjustable speed and crawler count, follow mode, progress scrubber). A badly graded file that half the project imports stands out immediately — something the pyramid could never show. The 3D pyramid, treemap and list are still one click away.
+Open **KASAUTI: Open Code Map**. Every dot is a file (colour = grade); folders hold them, violet lines are imports, and a **glowing ring means a problem**. Drag to rotate, scroll to fly in and out, **double-click any dot to jump straight to the line in your code**. The *Problems found* panel says in plain words what is wrong — **Security risk**, **AI mistakes**, **Slow code** — and clicking one lights up only those files. Click a file to see each problem, why it matters and how to fix it, with **✨ Fix with AI** and **📈 Measure speed** buttons.
 
 ## New in 2.0 — "Parakh": audit AI-written code from every side
 

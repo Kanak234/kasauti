@@ -1,8 +1,8 @@
 {
   "name": "kasauti",
-  "displayName": "KASAUTI — 360° Code Audit, Proof & Quality Visualizer",
-  "description": "Audit AI-written code from every side: security (injection, secrets), performance (Big-O estimate + measured proof), AI loopholes (hallucinated packages, swallowed errors, stubs), simplifications, and industry quality metrics with an A–E grade, a live NeuralSchema-style Code Map (folders, files, functions, imports, crawler animation) and a 3D pyramid. AI fixes from any model (Ollama, OpenAI, Claude, Nemotron…) are verified before you apply them. MCP server for agents.",
-  "version": "2.1.0",
+  "displayName": "KASAUTI — 360° Code Audit & 3D Code Map",
+  "description": "See your whole project as a 3D Code Map and find what is wrong in plain words: security risks, slow code, AI-generated-code mistakes (fake packages, ignored errors, stubs) and hard-to-maintain code, with an A–E grade. Double-click to jump to the line. AI fixes from any model (Ollama, OpenAI, Claude, Nemotron…) are checked before you can apply them. MCP server for coding agents.",
+  "version": "2.2.0",
   "publisher": "KANAKPRABHAKAR",
   "author": {
     "name": "Kanak Prabhakar"

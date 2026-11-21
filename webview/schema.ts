@@ -107,6 +107,7 @@ export class SchemaView {
         toggle('◎ Follow', 'follow'), toggle('▭ Tags', 'tags'), toggle('ƒ Functions', 'functions')),
       h('div', { class: 'row' }, this.scrub, this.scrubLabel));
     const mark = h('div', { class: 'schema-mark' });
+    // kasauti-disable-next-line KP208 — our own bundled SVG, never user data
     mark.innerHTML = LOGO.replace(/<title>.*?<\/title>/, '');            // our own bundled SVG, not user data
     mark.append(h('span', {}, 'KASAUTI'));
     const title = h('div', { class: 'schema-title' }, h('b', {}, 'Code Map'), h('small', {}, 'folders → files → functions · import links · 360° findings'));
@@ -531,9 +532,8 @@ export class SchemaView {
     c.addEventListener('dblclick', (e) => {
       const [sx, sy] = local(e);
       const n = this.graph.nodes.get(this.pick(sx, sy) ?? '');
-      if (n?.kind !== 'file' || !n.key) return;
-      if (this.expanded.has(n.key)) this.expanded.delete(n.key); else this.expanded.add(n.key);
-      this.rebuild(new Set());
+      // v2.2: double-click jumps to the code (VYUHA's tap-to-jump); functions come from the button.
+      if (n?.key && (n.kind === 'file' || n.kind === 'fn')) this.host.open(n.key, n.kind === 'fn' ? n.line : undefined);
     });
     c.addEventListener('mouseleave', () => { this.hover = undefined; this.host.tip(undefined, 0, 0); this.wake(); });
   }

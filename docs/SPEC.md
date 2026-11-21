@@ -735,3 +735,29 @@ checked on screenshots (docs/code-map.png).
 
 **Not verified:** inside a real VS Code webview (only a browser harness with
 the real bundle); very large repos (> 3,000 files) for frame rate.
+
+---
+
+# PART J — v2.2 "simple" (21 Nov 2026)
+
+**Kanak's feedback on 2.1 (first real use):** too many options; "AI-risk" rings
+did not say what the risk was; 2D felt flat — VYUHA got its downloads by being
+simple and 3D; the pyramid should go; bring VYUHA's good features (tap to jump,
+zoom/size); AI-provider and MCP setup were invisible in the UI.
+
+| ID | Decision |
+|----|----------|
+| OD-17 | Pyramid and treemap **removed** (code deleted, not hidden). Views: Code Map, List. |
+| OD-18 | Code Map is 3D (Three.js, OrbitControls); the 2D map stays only as the no-WebGL fallback. |
+| OD-19 | Five plain problem groups (src/audit/plain.ts) are the vocabulary of every view; rule ids become secondary. |
+| OD-20 | VYUHA parity: double-click jumps to the line (whole line highlighted, centred); Zoom + Size sliders and keys. |
+| OD-21 | AI/MCP setup surfaced as sidebar buttons; drawer gets Fix with AI / Measure speed. |
+
+**Verified:** 107/107 tests (webview tests rewritten for two views, plain sidebar
+groups and the AI section; pyramid layout tests deleted with the pyramid).
+Rendered in headless Chrome on KASAUTI's own 106 files: 3D map, filter by
+problem group, hover tooltip listing real problems, zoom, detail drawer with
+the new buttons, sidebar AI section — no page errors.
+
+**Not verified:** inside real VS Code (only the browser harness); the
+"MCP connect issue" Kanak saw — waiting for the exact message/screenshot.

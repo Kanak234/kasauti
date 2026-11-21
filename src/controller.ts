@@ -171,6 +171,15 @@ export class Controller implements vscode.Disposable, WebviewHost {
       else if (m.id === 'pyramid') this.openPyramid();
       else if (m.id === 'export') void this.exportReport();
       else if (m.id === 'cancel') this.scanning?.cts.cancel();
+      // v2.2: buttons in the sidebar / drawer for the AI + agent features.
+      else if (m.id === 'chooseAI') void vscode.commands.executeCommand('kasauti.chooseAIProvider');
+      else if (m.id === 'setKey') void vscode.commands.executeCommand('kasauti.setAIKey');
+      else if (m.id === 'mcp') void vscode.commands.executeCommand('kasauti.copyMcpConfig');
+      else if (m.id === 'scoreboard') void vscode.commands.executeCommand('kasauti.showAIScoreboard');
+      else if ((m.id === 'fix' || m.id === 'prove') && m.key) {
+        const uri = vscode.Uri.parse(m.key);
+        void this.openAt(m.key, m.line).then(() => vscode.commands.executeCommand(m.id === 'fix' ? 'kasauti.fixWithAI' : 'kasauti.proveComplexity', uri, m.line));
+      }
     }
   }
 
@@ -224,8 +233,13 @@ export class Controller implements vscode.Disposable, WebviewHost {
       const worst = [...r.findings].sort((a, b) => b.debtMinutes - a.debtMinutes)[0];
       target = worst?.line ?? 0;
     }
-    const pos = new vscode.Position(target ?? 0, 0);
-    await vscode.window.showTextDocument(uri, { selection: new vscode.Range(pos, pos), viewColumn: vscode.ViewColumn.One, preserveFocus: false });
+    // v2.2 (from VYUHA): jump to the line, centre it and highlight the whole line.
+    const ed = await vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.One, preserveFocus: false });
+    if (!ed?.document) return;
+    const ln = Math.min(Math.max(0, target ?? 0), Math.max(0, ed.document.lineCount - 1));
+    const range = ed.document.lineAt(ln).range;
+    ed.selection = new vscode.Selection(range.start, range.end);
+    ed.revealRange(range, vscode.TextEditorRevealType.InCenter);
   }
 
   /* ======================================================================

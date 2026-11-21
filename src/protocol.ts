@@ -22,4 +22,8 @@ export type WebviewMessage =
   | { type: 'ready' }
   | { type: 'open'; key: string; line?: number }
   | { type: 'detail'; key: string }
-  | { type: 'command'; id: 'scan' | 'pyramid' | 'export' | 'cancel' };
+  // v2.2: AI / agent setup and per-file actions are buttons now, not only commands.
+  | { type: 'command'; id: CommandId; key?: string; line?: number };
+
+export type CommandId = 'scan' | 'pyramid' | 'export' | 'cancel'
+  | 'chooseAI' | 'setKey' | 'mcp' | 'scoreboard' | 'fix' | 'prove';

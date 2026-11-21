@@ -425,7 +425,7 @@ export function auditTree(root: SyntaxNode, grammarKey: string, filePath = ''): 
         const maybeString = (lang === 'js' && (c.method === 'includes' || c.method === 'indexOf')) || (lang === 'python' && !knownList && !pyShift);
         const fix = pyShift ? 'collections.deque (popleft/appendleft are O(1))' : javaShift ? 'an ArrayDeque (pollFirst is O(1))' : alt;
         report(c.node, 'KP103', maybeString ? 'minor' : 'major', maybeString ? 5 : 10,
-          `\`${c.node.text.split('\n')[0].slice(0, 50)}\` runs inside a loop and walks the whole collection each time (O(n) per iteration → O(n²)). Use ${fix}.` + (maybeString ? ' (Ignore if this is a short string or a set.)' : ''));
+          `\`${c.node.text.split('\n')[0].slice(0, 50)}\` searches the whole list on every loop round, so the code slows down sharply as data grows (O(n²)). Use ${fix}.` + (maybeString ? ' (Ignore if this is a short string or a set.)' : ''));
       }
       if (SORT_METHODS[lang].has(c.method) && (c.object || c.method === 'sorted'))
         report(c.node, 'KP106', 'major', 10, `Sorting inside a loop costs O(n log n) per iteration (O(n² log n) total). Sort once before the loop, or use a heap.`);
@@ -535,16 +535,16 @@ export function auditTree(root: SyntaxNode, grammarKey: string, filePath = ''): 
     const bare = parts.filter((p) => p.type !== 'block' && !COMMENTS.has(p.type)).length === 0;
     const silent = !!body && stmts(body).every((s) => s.type === 'pass_statement' || s.type === 'continue_statement' || (s.type === 'expression_statement' && named(s)[0]?.type === 'ellipsis'));
     if (bare || silent)
-      report(n, 'KP304', 'major', 10, bare && silent ? '`except: pass` hides every error, even Ctrl+C — catch the specific exception and handle or log it.'
-        : bare ? 'Bare `except:` also catches KeyboardInterrupt and SystemExit — name the exception you expect.'
-        : `\`${n.text.split('\n')[0].trim()}\` then nothing — the error disappears silently. Log it, handle it, or let it propagate.`);
+      report(n, 'KP304', 'major', 10, bare && silent ? 'Every error is caught and thrown away (`except: pass`) — if something breaks, nobody will ever know. Catch only the error you expect and log it.'
+        : bare ? '`except:` with no error name also catches Ctrl+C and program exit. Write the error you expect, e.g. `except ValueError:`.'
+        : `The error is caught here (\`${n.text.split('\n')[0].trim()}\`) but then ignored, so failures happen silently. Log it, fix it, or let it stop the program.`);
   }
 
   /** KP304 js/java: empty catch block. */
   function checkCatch(n: SyntaxNode) {
     const body = n.childForFieldName('body') ?? named(n).find((c) => c.type === 'block' || c.type === 'statement_block');
     if (body && stmts(body).length === 0)
-      report(n, 'KP304', 'major', 10, 'Empty catch block — the error is swallowed and the program continues with bad state. Handle it, log it, or rethrow.');
+      report(n, 'KP304', 'major', 10, 'The error is caught but the catch block is empty, so failures happen silently and the program continues with bad data. Log it or rethrow it.');
   }
 
   /** KP401: `if c: return True else: return False` (and the no-else variant). */

@@ -1,5 +1,24 @@
 # Change Log
 
+## 2.2.0 — 21 November 2026 — simpler, 3D, plain words
+
+From Kanak's first real use of 2.1: too many options, risks not explained, 2D felt flat.
+
+### Changed
+- **Code Map is 3D** (VYUHA-style): glowing nodes, drag to rotate, scroll to fly in/out, right-drag to move, gentle auto-spin until you touch it. Falls back to the flat map without WebGL.
+- **The pyramid and treemap are removed.** Two views remain: Code Map and List.
+- **Problems in plain words everywhere:** five groups — Security risk, AI mistakes, Slow code, Can be simpler, Hard to maintain — each with a one-line explanation. The map's "Problems found" panel filters the map by group; the tooltip lists a file's actual problems; the detail drawer groups problems by kind and leads with the problem name (rule id is a small tag). The sidebar uses the same groups.
+- Clearer messages for swallowed errors and loops that search a list.
+- Toolbar cut to: view, search, grade, Rescan. Map controls cut to: Replay, Show functions, Reset view.
+- New icon in the VYUHA family.
+
+### Added (from VYUHA)
+- **Double-click (tap) any dot to jump to the code:** files open at their most serious problem, functions at their line; the whole line is highlighted and centred.
+- **Zoom and Size sliders** with − / + buttons (keys: + − zoom, ] [ size, 0 reset).
+
+### Added
+- **AI fixes and agents in the UI** (sidebar): current AI model shown, "Choose AI model", "Set API key", "Connect an agent (MCP)", "Which AI fixes best?". The detail drawer has **✨ Fix with AI** and **📈 Measure speed** buttons.
+
 ## 2.1.0 — 21 November 2026 — Code Map
 
 ### Added

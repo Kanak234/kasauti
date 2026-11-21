@@ -11,16 +11,20 @@
  * ========================================================================== */
 
 import type { UiSummary } from '../src/snapshot';
+import type { CommandId } from '../src/protocol';
 import { formatDebt, gradeColor, gradeInk, h, onHost, send, setColorBlind } from './common';
+import { PLAIN, PlainCat } from '../src/audit/plain';
 
 const app = document.getElementById('app')!;
-const CATS: Array<[keyof UiSummary['byCategory'], string]> = [
-  ['complexity', 'Complexity'], ['size', 'Size'], ['duplication', 'Duplication'], ['style', 'Style'],
-  // v2.0 audit categories (KP1xx / KP2xx / KP3xx)
-  ['performance', 'Performance'], ['security', 'Security'], ['ai-risk', 'AI-risk'],
-];
+// v2.2: five plain-language groups (same words and colours as the Code Map and
+// the detail drawer). Several technical categories fold into "Hard to maintain".
+type Cat = keyof UiSummary['byCategory'];
+const GROUPS: Array<{ label: string; color: string; cats: Cat[]; explain: string }> = (['security', 'ai', 'slow', 'quality', 'simpler'] as PlainCat[]).map((p) => ({
+  label: PLAIN[p].label, color: PLAIN[p].color, explain: PLAIN[p].explain,
+  cats: ({ security: ['security'], ai: ['ai-risk'], slow: ['performance'], quality: ['complexity', 'size', 'duplication'], simpler: ['style'] } as Record<PlainCat, Cat[]>)[p],
+}));
 
-function button(label: string, id: 'scan' | 'pyramid' | 'export' | 'cancel', primary = false) {
+function button(label: string, id: CommandId, primary = false) {
   const b = h('button', { class: primary ? 'btn primary' : 'btn', type: 'button' }, label);
   b.addEventListener('click', () => send({ type: 'command', id }));
   return b;
@@ -125,15 +129,16 @@ function render(s: UiSummary): void {
   }
 
   // ---- where the debt comes from -------------------------------------------
-  const total = Math.max(1, CATS.reduce((a, [k]) => a + s.byCategory[k], 0));
-  const bar = h('div', { class: 'stack', role: 'img', 'aria-label': 'Technical debt by category' });
+  const val = (g: typeof GROUPS[number]) => g.cats.reduce((a, c) => a + (s.byCategory[c] ?? 0), 0);
+  const total = Math.max(1, GROUPS.reduce((a, g) => a + val(g), 0));
+  const bar = h('div', { class: 'stack', role: 'img', 'aria-label': 'Work to fix, by kind of problem' });
   const legend = h('ul', { class: 'legend' });
-  CATS.forEach(([k, label], i) => {
-    const v = s.byCategory[k];
-    if (v > 0) bar.append(h('i', { class: `c${i}`, style: `flex:${v}`, title: `${label}: ${formatDebt(v)}` }));
-    legend.append(h('li', {}, h('b', { class: `c${i}` }), `${label} `, h('span', { class: 'muted' }, `${Math.round((100 * v) / total)}%`)));
-  });
-  app.append(h('section', {}, h('h3', {}, 'Where the debt comes from'), bar, legend));
+  for (const g of GROUPS) {
+    const v = val(g);
+    if (v > 0) bar.append(h('i', { style: `flex:${v};background:${g.color}`, title: `${g.label}: ${formatDebt(v)} — ${g.explain}` }));
+    legend.append(h('li', { title: g.explain }, h('b', { style: `background:${g.color}` }), `${g.label} `, h('span', { class: 'muted' }, `${Math.round((100 * v) / total)}%`)));
+  }
+  app.append(h('section', {}, h('h3', {}, 'What kind of problems'), bar, legend));
 
   // ---- hotspots --------------------------------------------------------------
   if (s.hotspots.length) {
@@ -152,6 +157,17 @@ function render(s: UiSummary): void {
   }
 
   app.append(h('div', { class: 'actions' }, button('Open Code Map', 'pyramid', true), button('Export report', 'export'), button('Rescan', 'scan')));
+
+  // ---- v2.2: AI fixes + agents, visible instead of hidden in the command palette
+  const ai = s.ai;
+  app.append(h('section', { class: 'ai-box' },
+    h('h3', {}, 'AI fixes and agents'),
+    h('p', { class: 'muted' }, 'Any AI can suggest a fix; KASAUTI checks it (same behaviour, no new security problems, not slower) before you can apply it.'),
+    ai ? h('div', { class: 'ai-now' }, h('span', { class: 'muted' }, 'Using '), h('b', {}, ai.label), ` · ${ai.model}`,
+      h('span', { class: ai.local ? 'tag ok' : 'tag' }, ai.local ? 'on this computer' : 'cloud')) : undefined,
+    h('div', { class: 'actions' }, button('Choose AI model', 'chooseAI', true), button('Set API key', 'setKey')),
+    h('div', { class: 'actions' }, button('Connect an agent (MCP)', 'mcp'), button('Which AI fixes best?', 'scoreboard')),
+    h('p', { class: 'muted small' }, 'Fix a file: open it in the Code Map and press "Fix with AI", or right-click inside a function.')));
 }
 
 onHost((m) => {

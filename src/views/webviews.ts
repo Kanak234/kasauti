@@ -18,6 +18,7 @@ import * as crypto from 'crypto';
 import { detail, summary, toUiFile } from '../snapshot';
 import type { HostMessage, WebviewMessage } from '../protocol';
 import type { ResultStore } from '../store';
+import { presetById } from '../ai/providers';
 
 export interface WebviewHost {
   /** v0.2.0 F6/F5: trend samples and threshold provenance for the Overview. */
@@ -118,6 +119,12 @@ export class OverviewView implements vscode.WebviewViewProvider, vscode.Disposab
       ].filter(Boolean).join(', ') + '.';
     }
     if (prov.problems.length) s.configProblems = prov.problems;
+    // v2.2: the chosen AI model is visible (and changeable) in the sidebar.
+    const c = vscode.workspace.getConfiguration('kasauti');
+    const pid = c.get<string>('ai.provider', 'ollama');
+    const preset = presetById(pid);
+    s.ai = { label: pid === 'vscode-lm' ? 'VS Code models' : (preset?.label.replace(/ \(.*\)$/, '') ?? pid),
+      model: c.get<string>('ai.model', '') || preset?.defaultModel || 'not chosen', local: pid === 'vscode-lm' || !!preset?.local };
     const msg: HostMessage = initial
       ? { type: 'init', files: [], summary: s, colorBlind: this.host.colorBlind() }
       : { type: 'summary', summary: s };

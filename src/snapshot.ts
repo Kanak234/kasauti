@@ -16,6 +16,7 @@ import { RULE_BY_ID } from './engine/rules';
 import { formatDebt } from './engine/scoring';
 import type { FunctionMetrics, Grade, Severity } from './engine/types';
 import type { DebtCategory, FileRecord, ResultStore } from './store';
+import { plainCat, PlainCat, PLAIN_ORDER } from './audit/plain';
 
 export interface UiFile {
   key: string;
@@ -41,6 +42,8 @@ export interface UiFile {
   fns?: Array<{ name: string; line: number; grade: Grade; cc: number }>;
   /** v2.1 Code Map: 360° audit finding counts [performance, security, AI-risk]. */
   kp?: [number, number, number];
+  /** v2.2: the file's most serious problems in plain words (max 4), for tooltips. */
+  issues?: Array<{ cat: PlainCat; title: string; line: number }>;
 }
 
 export interface UiSummary {
@@ -65,10 +68,14 @@ export interface UiSummary {
   thresholdNote?: string;
   /** v0.2.0 F5: problems found in .kasauti.toml, shown as a warning. */
   configProblems?: string[];
+  /** v2.2: which AI proposes fixes (shown in the sidebar so it is not hidden in settings). */
+  ai?: { label: string; model: string; local: boolean };
 }
 
 export interface UiFinding {
   ruleId: string; ruleName: string; severity: Severity; message: string; line: number;
+  /** v2.2 plain-language group */
+  cat?: PlainCat;
   debtText: string; why: string; fix: string[];
 }
 
@@ -108,7 +115,20 @@ export function toUiFile(r: FileRecord, store?: ResultStore): UiFile {
     imp: r.analysis.imports?.length ? r.analysis.imports : undefined,
     fns: codeMapFunctions(r, store),
     kp: kpCounts(r),
+    issues: plainIssues(r),
   };
+}
+
+/** Up to 4 problems, most dangerous group first, then by severity. Info-level
+ *  notes (TODO markers) are not "problems" and are left out. */
+const SEV_RANK = { critical: 0, major: 1, minor: 2, info: 3 } as const;
+function plainIssues(r: FileRecord): UiFile['issues'] {
+  const list = r.findings.filter((f) => f.severity !== 'info')
+    .map((f) => ({ cat: plainCat(f.ruleId), title: RULE_BY_ID.get(f.ruleId)?.name ?? f.ruleId, line: f.line, sev: SEV_RANK[f.severity] }))
+    .sort((a, b) => PLAIN_ORDER.indexOf(a.cat) - PLAIN_ORDER.indexOf(b.cat) || a.sev - b.sev || a.line - b.line);
+  const seen = new Set<string>();
+  const out = list.filter((x) => { const k = x.title; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 4).map(({ sev, ...x }) => x);
+  return out.length ? out : undefined;
 }
 
 /** [performance, security, AI-risk] KP finding counts, or undefined if none. */
@@ -162,7 +182,7 @@ export function detail(store: ResultStore, key: string): UiDetail | undefined {
     })),
     findings: r.findings.map((f) => {
       const rule = RULE_BY_ID.get(f.ruleId)!;
-      return { ruleId: f.ruleId, ruleName: rule.name, severity: f.severity, message: f.message, line: f.line,
+      return { ruleId: f.ruleId, ruleName: rule.name, cat: plainCat(f.ruleId), severity: f.severity, message: f.message, line: f.line,
         debtText: formatDebt(f.debtMinutes), why: rule.why, fix: rule.fix };
     }),
     note: r.analysis.skipReason ? `Skipped: ${r.analysis.skipReason}.`

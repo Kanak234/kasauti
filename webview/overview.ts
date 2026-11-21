@@ -16,6 +16,8 @@ import { formatDebt, gradeColor, gradeInk, h, onHost, send, setColorBlind } from
 const app = document.getElementById('app')!;
 const CATS: Array<[keyof UiSummary['byCategory'], string]> = [
   ['complexity', 'Complexity'], ['size', 'Size'], ['duplication', 'Duplication'], ['style', 'Style'],
+  // v2.0 audit categories (KP1xx / KP2xx / KP3xx)
+  ['performance', 'Performance'], ['security', 'Security'], ['ai-risk', 'AI-risk'],
 ];
 
 function button(label: string, id: 'scan' | 'pyramid' | 'export' | 'cancel', primary = false) {

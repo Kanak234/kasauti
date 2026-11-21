@@ -95,11 +95,15 @@ export interface FileAnalysis {
   fallbackNote?: string;
   /** v0.2.0: `kasauti-disable-*` directives found in comments (F4 R4.5). */
   suppressions: Suppression[];
+  /** v2.0: findings of the deterministic 360° audit (KP1xx–KP4xx) computed on
+   *  the same parse tree. Unlike metrics these are already decisions, but they
+   *  depend on no threshold, so caching them with the analysis is still safe. */
+  audit?: Finding[];
 }
 
 /** One problem the user can act on. Created by rules.ts (and duplication). */
 export interface Finding {
-  ruleId: string;                       // 'CQ001'..'CQ012'
+  ruleId: string;                       // 'CQ001'..'CQ012', v2: 'KP101'..'KP405'
   severity: Severity;
   message: string;                      // human readable, specific
   line: number;                         // 0-based

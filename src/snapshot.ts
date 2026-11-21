@@ -15,7 +15,7 @@ import { displayName } from './engine/languages';
 import { RULE_BY_ID } from './engine/rules';
 import { formatDebt } from './engine/scoring';
 import type { FunctionMetrics, Grade, Severity } from './engine/types';
-import type { FileRecord, ResultStore } from './store';
+import type { DebtCategory, FileRecord, ResultStore } from './store';
 
 export interface UiFile {
   key: string;
@@ -48,7 +48,7 @@ export interface UiSummary {
   tier2: number;
   skipped: number;
   duplicatedPct: number;
-  byCategory: Record<'complexity' | 'size' | 'duplication' | 'style', number>;
+  byCategory: Record<DebtCategory, number>;
   hotspots: Array<{ key: string; path: string; grade: Grade; debtText: string }>;
   scanned: boolean;
   scanning?: { done: number; total: number };

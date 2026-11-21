@@ -16,6 +16,7 @@ import { DuplicationIndex } from './engine/duplication';
 import { duplicationDebt, evaluate } from './engine/rules';
 import { applySuppressions } from './engine/suppress';
 import { scoreOf } from './engine/scoring';
+import { AUDIT_RULES } from './audit/catalog';
 import type { FileAnalysis, Finding, FunctionMetrics, ScoreResult, Thresholds } from './engine/types';
 
 export interface FileRecord {
@@ -39,18 +40,29 @@ export interface SymbolRecord {
   estimated: boolean;
 }
 
+/** Debt categories shown as bars in the Overview. v2.0 adds the last three. */
+export type DebtCategory = 'complexity' | 'size' | 'duplication' | 'style' | 'performance' | 'security' | 'ai-risk';
+
 /** Rule -> debt category for the Overview breakdown bar. */
-export const CATEGORY: Record<string, 'complexity' | 'size' | 'duplication' | 'style'> = {
+export const CATEGORY: Record<string, DebtCategory> = {
   CQ001: 'complexity', CQ002: 'complexity', CQ005: 'complexity', CQ008: 'complexity',
   CQ003: 'size', CQ004: 'size', CQ006: 'size', CQ009: 'size',
   CQ007: 'duplication', CQ010: 'style', CQ011: 'style', CQ012: 'style',
 };
+// v2.0: KP1xx -> performance, KP2xx -> security, KP3xx -> AI-risk, KP4xx -> style
+// (simplifications are readability debt, like long lines).
+for (const r of AUDIT_RULES) CATEGORY[r.id] = r.category === 'simplify' ? 'style' : r.category;
 
 export class ResultStore {
   private readonly files = new Map<string, FileRecord>();
   private dup: DuplicationIndex;
   private listeners: Array<(c: StoreChange) => void> = [];
   private batchDepth = 0;
+  /** v2.0: findings computed on the host, outside the worker (dependency /
+   *  registry checks need the project's manifests and the network). */
+  private readonly external = new Map<string, Finding[]>();
+  /** v2.0: `kasauti.audit.enabled` — false hides every KP finding. */
+  private auditEnabled = true;
 
   constructor(private thresholds: Thresholds, private includeTier2 = true) {
     this.dup = new DuplicationIndex(thresholds.duplicationTokens);
@@ -89,6 +101,7 @@ export class ResultStore {
 
   remove(key: string): void {
     if (!this.files.delete(key)) return;
+    this.external.delete(key);
     const affected = this.dup.removeFile(key);
     for (const k of affected) { const r = this.files.get(k); if (r) this.reevaluate(r); }
     this.emit({ changed: [...affected].filter((k) => this.files.has(k)), removed: [key] });
@@ -117,9 +130,31 @@ export class ResultStore {
     this.emit({ changed: [], removed, all: true });
   }
 
+  /** v2.0: replace the host-side findings of one file and re-score it.
+   *  Skips the update (and the event) when nothing changed — this runs after
+   *  every keystroke analysis, and a no-op must not repaint every view. */
+  setExternal(key: string, findings: Finding[]): void {
+    const before = JSON.stringify(this.external.get(key) ?? []);
+    if (before === JSON.stringify(findings)) return;
+    if (findings.length) this.external.set(key, findings); else this.external.delete(key);
+    const r = this.files.get(key);
+    if (!r) return;
+    this.reevaluate(r);
+    if (this.batchDepth === 0) this.emit({ changed: [key], removed: [] });
+  }
+
+  /** v2.0: turn the KP audit on/off without re-parsing anything. */
+  setAuditEnabled(on: boolean): void {
+    if (on === this.auditEnabled) return;
+    this.auditEnabled = on;
+    for (const r of this.files.values()) this.reevaluate(r);
+    this.emit({ changed: [...this.files.keys()], removed: [], all: true });
+  }
+
   /** Rules + duplication -> findings -> score, for one file. */
   private reevaluate(r: FileRecord): void {
-    let findings = evaluate(r.analysis, this.thresholds);
+    let findings = evaluate(r.analysis, this.thresholds, this.auditEnabled);
+    if (this.auditEnabled) for (const f of this.external.get(r.key) ?? []) findings.push({ ...f });
     if (r.inWorkspace && this.batchDepth === 0) {
       for (const b of this.dup.duplicatesFor(r.key)) {
         const lines = b.endLine - b.startLine + 1;
@@ -176,8 +211,8 @@ export class ResultStore {
   }
 
   /** Debt minutes per category across the workspace. */
-  debtByCategory(): Record<'complexity' | 'size' | 'duplication' | 'style', number> {
-    const out = { complexity: 0, size: 0, duplication: 0, style: 0 };
+  debtByCategory(): Record<DebtCategory, number> {
+    const out: Record<DebtCategory, number> = { complexity: 0, size: 0, duplication: 0, style: 0, performance: 0, security: 0, 'ai-risk': 0 };
     for (const r of this.files.values()) {
       if (!this.counts(r)) continue;
       for (const f of r.findings) out[CATEGORY[f.ruleId] ?? 'style'] += f.debtMinutes;

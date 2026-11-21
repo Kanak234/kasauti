@@ -1,8 +1,8 @@
 {
   "name": "kasauti",
-  "displayName": "KASAUTI — Code Quality Visualizer",
-  "description": "Industry-standard code quality metrics (cyclomatic, cognitive, Halstead, maintainability, duplication) with an A–E grade and a live 3D pyramid of your codebase. Offline. 24 languages fully, every other language partially.",
-  "version": "0.2.1",
+  "displayName": "KASAUTI — 360° Code Audit, Proof & Quality Visualizer",
+  "description": "Audit AI-written code from every side: security (injection, secrets), performance (Big-O estimate + measured proof), AI loopholes (hallucinated packages, swallowed errors, stubs), simplifications, and industry quality metrics with an A–E grade and a live 3D pyramid. AI fixes from any model (Ollama, OpenAI, Claude, Nemotron…) are verified before you apply them. MCP server for agents.",
+  "version": "2.0.0",
   "publisher": "KANAKPRABHAKAR",
   "author": {
     "name": "Kanak Prabhakar"
@@ -29,7 +29,17 @@
     "visualization",
     "3d",
     "sonar",
-    "metrics"
+    "metrics",
+    "security",
+    "sast",
+    "ai code review",
+    "big o",
+    "time complexity",
+    "slopsquatting",
+    "mcp",
+    "ollama",
+    "code audit",
+    "refactoring"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -37,8 +47,8 @@
   ],
   "capabilities": {
     "untrustedWorkspaces": {
-      "supported": true,
-      "description": "KASAUTI only reads and parses files; it never runs your code."
+      "supported": "limited",
+      "description": "In untrusted workspaces KASAUTI only reads and parses files. Proving complexity and verifying AI fixes run code, so they are disabled until you trust the folder."
     },
     "virtualWorkspaces": false
   },
@@ -135,6 +145,43 @@
         "command": "kasauti.cycleCodeLens",
         "title": "Cycle CodeLens Detail",
         "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.proveComplexity",
+        "title": "Prove Complexity of This Function",
+        "category": "KASAUTI",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "kasauti.fixWithAI",
+        "title": "Fix with AI (Verified)",
+        "category": "KASAUTI",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "kasauti.chooseAIProvider",
+        "title": "Choose AI Provider (Ollama, OpenAI, Claude, Nemotron…)",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.setAIKey",
+        "title": "Set AI API Key",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.copyMcpConfig",
+        "title": "Connect an Agent via MCP (Claude Code, OpenCode, Codex…)",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.showAIScoreboard",
+        "title": "Show AI Model Scoreboard",
+        "category": "KASAUTI"
+      },
+      {
+        "command": "kasauti.forgetPermissions",
+        "title": "Forget Code-Execution and Cloud-AI Permissions",
+        "category": "KASAUTI"
       }
     ],
     "menus": {
@@ -164,6 +211,26 @@
         {
           "command": "kasauti.showFileDetail",
           "when": "editorIsOpen"
+        },
+        {
+          "command": "kasauti.proveComplexity",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "kasauti.fixWithAI",
+          "when": "editorIsOpen"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "kasauti.fixWithAI",
+          "when": "editorLangId =~ /^(python|javascript|typescript|typescriptreact|java)$/",
+          "group": "kasauti@1"
+        },
+        {
+          "command": "kasauti.proveComplexity",
+          "when": "editorLangId =~ /^(python|javascript)$/",
+          "group": "kasauti@2"
         }
       ]
     },
@@ -325,6 +392,72 @@
           "default": 300,
           "minimum": 1,
           "description": "Above this many functions in one file, CodeLens is suppressed. Generated files can contain thousands of functions, and a lens on each one makes the file unreadable."
+        },
+        "kasauti.audit.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "v2.0: run the 360° audit (KP101–KP405: performance, security, AI-risk, simplification). Turning it off hides those findings without re-analysing."
+        },
+        "kasauti.audit.checkRegistry": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Verify imported package names on **PyPI / npm** to catch hallucinated or brand-new packages (KP302/KP303). Sends package names (never code) over the network, so it is off by default."
+        },
+        "kasauti.ai.provider": {
+          "type": "string",
+          "default": "ollama",
+          "enum": [
+            "ollama",
+            "lmstudio",
+            "openai",
+            "anthropic",
+            "nvidia",
+            "openrouter",
+            "groq",
+            "custom",
+            "vscode-lm"
+          ],
+          "enumDescriptions": [
+            "Ollama on this computer (free, offline)",
+            "LM Studio on this computer",
+            "OpenAI",
+            "Anthropic (Claude)",
+            "NVIDIA NIM — Nemotron and other models",
+            "OpenRouter — many models with one key",
+            "Groq",
+            "Any OpenAI-compatible endpoint (set kasauti.ai.baseUrl)",
+            "Models VS Code already provides (e.g. GitHub Copilot)"
+          ],
+          "markdownDescription": "Which AI proposes fixes for **Fix with AI (Verified)**. Whatever it proposes, KASAUTI verifies deterministically before you can apply it. Use the command *KASAUTI: Choose AI Provider* to set this up interactively."
+        },
+        "kasauti.ai.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model id exactly as the provider lists it (e.g. an Ollama tag). Empty uses the provider default (Ollama: qwen2.5-coder:7b) or asks."
+        },
+        "kasauti.ai.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Override the provider base URL (required for \"custom\"). API keys are never stored here — use \"KASAUTI: Set AI API Key\"."
+        },
+        "kasauti.ai.maxAttempts": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 6,
+          "description": "How many times the model may retry after the verifier rejects an answer (the reasons are sent back to it)."
+        },
+        "kasauti.prove.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python interpreter used to prove complexity / verify Python fixes. Empty: python.defaultInterpreterPath, then python3 / python / py."
+        },
+        "kasauti.prove.timeoutSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 10,
+          "maximum": 180,
+          "description": "Hard time limit for one measurement run; the process is killed after it and the points measured so far are kept."
         }
       }
     }

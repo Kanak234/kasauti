@@ -4,6 +4,7 @@
  * WHAT:  Produces everything the .vsix needs inside dist/:
  *          dist/extension.js   VS Code host code (CommonJS, `vscode` external)
  *          dist/worker.js      analysis worker thread
+ *          dist/mcp.js         v2.0 MCP server (stdio) for agent harnesses
  *          dist/webview.js     pyramid/treemap UI (browser IIFE, Three.js inside)
  *          dist/wasm/*.wasm    tree-sitter runtime + the 24 Tier 1 grammars
  *        and, with --test, dist-test/*.test.js for `node --test`.
@@ -51,6 +52,11 @@ await Promise.all([
   // v0.2.0 F5: the headless CLI. No `vscode` import anywhere in its chain —
   // if one ever creeps in, this build fails, which is the point.
   esbuild.build({ ...common, entryPoints: ['src/cli.ts'], outfile: 'dist/cli.js',
+    platform: 'node', format: 'cjs', target: 'node18',
+    banner: { js: '#!/usr/bin/env node' } }),
+  // v2.0: MCP server for agent harnesses (Claude Code, OpenCode, Codex …).
+  // Like the CLI it must never import `vscode`.
+  esbuild.build({ ...common, entryPoints: ['src/mcp/server.ts'], outfile: 'dist/mcp.js',
     platform: 'node', format: 'cjs', target: 'node18',
     banner: { js: '#!/usr/bin/env node' } }),
   esbuild.build({ ...common, entryPoints: ['webview/main.ts'], outfile: 'dist/webview.js',

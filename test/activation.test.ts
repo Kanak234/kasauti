@@ -46,6 +46,10 @@ test('the packaged extension activates and registers exactly what package.json d
       extensionUri: vscode.Uri.file(ROOT),
       storageUri: vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), 'kasauti-test-'))),
       workspaceState: { get: () => false, update: async () => {} },
+      // v2.0: what Parakh needs (all always present in real VS Code).
+      globalState: { get: (_k: string, d?: unknown) => d, update: async () => {} },
+      globalStorageUri: vscode.Uri.file(fs.mkdtempSync(path.join(os.tmpdir(), 'kasauti-global-'))),
+      secrets: { get: async () => undefined, store: async () => {} },
       extension: { packageJSON: pkg },
     };
     const t0 = Date.now();
@@ -57,14 +61,15 @@ test('the packaged extension activates and registers exactly what package.json d
     assert.deepEqual([...rec.commands].sort(), declared, 'every declared command must have a handler, and no extras');
     const viewIds = pkg.contributes.views.kasauti.map((v: { id: string }) => v.id);
     for (const id of viewIds) assert.ok([...rec.trees, ...rec.webviewViews].includes(id), `view ${id} not registered`);
-    assert.equal(rec.codeLens, 1, 'CodeLens provider registered');
+    assert.equal(rec.codeLens, 2, 'CodeLens providers registered (metrics + v2.0 Fix/Prove lenses)');
     assert.equal(rec.diagnostics, 1, 'diagnostic collection created');
     assert.equal(rec.statusBars, 1, 'status bar item created');
     assert.ok(activateMs < 300, `activation took ${activateMs} ms (budget 300 ms)`);
 
     // Settings declared in package.json must all be read by config.ts.
     const settings = Object.keys(pkg.contributes.configuration.properties);
-    const configSrc = fs.readFileSync(path.join(ROOT, 'src/config.ts'), 'utf8');
+    // v2.0 settings (audit / ai / prove) are read by views/parakh.ts.
+    const configSrc = fs.readFileSync(path.join(ROOT, 'src/config.ts'), 'utf8') + fs.readFileSync(path.join(ROOT, 'src/views/parakh.ts'), 'utf8');
     for (const s of settings) {
       const key = s.replace(/^kasauti\./, '');
       assert.ok(configSrc.includes(`'${key}'`), `setting ${s} is declared but never read`);

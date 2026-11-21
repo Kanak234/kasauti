@@ -11,6 +11,7 @@
  * ========================================================================== */
 
 import type { FileAnalysis, Finding, Severity, Thresholds } from './types';
+import { AUDIT_RULES } from '../audit/catalog';
 
 /** SPEC §B4.2 defaults, with the source each value is based on. */
 export const DEFAULT_THRESHOLDS: Thresholds = {
@@ -89,6 +90,10 @@ export const RULES: RuleInfo[] = [
     fix: ['Check the editor\'s Problems panel for the language\'s own error messages.'] },
 ];
 
+// v2.0: the 360° audit rules (KP1xx–KP4xx) join the same catalog, so hovers,
+// rule pages, the Issues tree and SARIF treat them exactly like CQ rules.
+RULES.push(...AUDIT_RULES);
+
 export const RULE_BY_ID = new Map(RULES.map((r) => [r.id, r]));
 
 /** Over-threshold severity: far over (>= 2x the limit) is critical. */
@@ -102,9 +107,13 @@ const MAX_LINE_FINDINGS = 20;
  * Turn raw measurements into actionable findings.
  * Pure function: same inputs -> same outputs (determinism, SPEC §A10.3).
  */
-export function evaluate(a: FileAnalysis, t: Thresholds): Finding[] {
+export function evaluate(a: FileAnalysis, t: Thresholds, includeAudit = true): Finding[] {
   const out: Finding[] = [];
   if (a.tier === 3) return out;
+
+  // ---- v2.0 audit findings (already decided in the worker; copied so a view
+  //      mutating a finding can never corrupt the cached analysis) -----------
+  if (includeAudit) for (const f of a.audit ?? []) out.push({ ...f });
 
   // ---- function-level rules (Tier 1) ------------------------------------
   for (const f of a.functions) {

@@ -1,8 +1,60 @@
-# KASAUTI — Code Quality Visualizer
+<img src="media/logo-mark.png" alt="KP" width="48" align="right">
+
+# KASAUTI — 360° Code Audit, Proof & Quality Visualizer
 
 **कसौटी** is the touchstone a goldsmith rubs metal against to judge its purity. This extension does the same for code: it measures your codebase against published industry metrics, gives every file a grade from **A to E**, and shows the whole project as a **3D pyramid you can walk around** — updating live as you type.
 
-Everything runs **offline** inside VS Code. No account, no server, no telemetry, no network calls.
+Everything runs **offline** inside VS Code. No account, no server, no telemetry. The only network calls are the optional ones you switch on yourself: an AI provider you choose for fixes, and the PyPI/npm package check (both off by default).
+
+---
+
+## New in 2.0 — "Parakh": audit AI-written code from every side
+
+AI writes code fast; it also leaves loopholes. KASAUTI 2.0 checks code the way a reviewer would — and then **proves** its claims instead of guessing.
+
+### 1. The 360° audit (deterministic, no AI involved)
+
+26 new rules run on the same parse tree as the metrics, live as you type:
+
+| Band | What it catches | Examples |
+|---|---|---|
+| **KP1xx Performance** | estimated Big-O from loop nesting, O(n) work inside loops, exponential recursion | nested loops → *estimated O(n²)*; `x in some_list` in a loop; `list.pop(0)`; naive `fib` |
+| **KP2xx Security** | injection, secrets, unsafe loading, TLS off, weak hashes, XSS | f-string SQL in `execute`, `os.system("…" + x)`, hard-coded API keys (masked in the report), `pickle.loads`, `verify=False` |
+| **KP3xx AI-risk** | the loopholes generated code typically leaves | **hallucinated / undeclared packages (slopsquatting)**, `except: pass`, placeholder stubs (`# … rest of the code`), unreachable code, mutable defaults |
+| **KP4xx Simplify** | same behaviour, fewer lines | `if c: return True else: return False` → `return c`, `range(len(x))` → `enumerate`, manual sum loops |
+
+Languages: Python, JavaScript, TypeScript/TSX, Java — and the secret scan works in **every** language. Every rule has a page with *why it matters*, *how to fix* and a **before → after** example ([rule index](media/rules/index.md)). Silence one line with `# kasauti-disable-next-line KP203`.
+
+### 2. Prove Complexity — measured, not guessed
+
+Put the cursor in a Python or JavaScript function → **KASAUTI: Prove Complexity**. It runs the function on generated inputs at n = 16, 32, 64 … (killed at a time limit), fits O(1) … O(2ⁿ) and draws the growth chart. A static *estimated O(n²)* becomes *measured O(n²), confidence high*.
+
+### 3. Fix with AI (Verified) — any model you like
+
+**The AI only proposes. KASAUTI decides.** Choose your model with **KASAUTI: Choose AI Provider**:
+
+Ollama (local, free, default) · LM Studio · OpenAI · Anthropic Claude · NVIDIA NIM (Nemotron) · OpenRouter · Groq · any OpenAI-compatible URL · or the models VS Code already has (Copilot).
+
+Every answer must pass five checks before the **Apply** button appears:
+
+1. defines the same function, and parses
+2. **no new security or AI-risk findings** — code that fails this is *never executed*
+3. **no new third-party packages** (no hallucinated imports)
+4. **identical results** to the original on edge cases (empty, duplicates, negatives, order) and random inputs
+5. **not slower** — before/after Big-O measured and charted
+
+A rejected answer goes back to the model with the exact reason, up to `kasauti.ai.maxAttempts` times. You get a diff and a proof panel; nothing changes until you click Apply (one Ctrl+Z undoes it). **KASAUTI: Show AI Model Scoreboard** shows which model's fixes actually pass on your code.
+
+### 4. Agents: MCP server for Claude Code, OpenCode, Codex, Cursor …
+
+**KASAUTI: Connect an Agent via MCP** copies a ready config. Your agent then gets five tools: `kasauti_audit_code`, `kasauti_audit_file`, `kasauti_check_packages`, `kasauti_prove_complexity`, `kasauti_verify_fix`. Code execution through MCP is off unless you set `KASAUTI_ALLOW_EXEC=1`.
+
+### Safety, plainly
+
+- API keys live only in VS Code SecretStorage (your OS keychain), never in settings.
+- Sending code to a **cloud** model asks first, per provider. Local models (Ollama, LM Studio) never leave your computer.
+- Running code (prove / verify) needs a **trusted workspace** and a one-time permission per workspace. It runs in an empty temp folder, with a time limit and without your environment variables (so your keys are invisible to it). **It is not a sandbox** — only allow it for code you would run yourself. *KASAUTI: Forget Code-Execution and Cloud-AI Permissions* resets both.
+- The package-registry check (`kasauti.audit.checkRegistry`) is off by default because it sends package names to PyPI/npm.
 
 ---
 

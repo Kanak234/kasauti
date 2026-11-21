@@ -21,7 +21,7 @@ import addFormats from 'ajv-formats';
 import { JSDOM } from 'jsdom';
 import { toHTML, toJSON, toSARIF } from '../src/export/report';
 import { ResultStore } from '../src/store';
-import { DEFAULT_THRESHOLDS } from '../src/engine/rules';
+import { DEFAULT_THRESHOLDS, RULES } from '../src/engine/rules';
 import { WorkerPool } from '../src/workerPool';
 
 const ROOT = path.resolve(__dirname, '..');
@@ -57,7 +57,7 @@ test('SARIF export validates against the official SARIF 2.1.0 schema', async () 
   assert.ok(ok, 'SARIF invalid: ' + JSON.stringify(validate.errors?.slice(0, 4), null, 1));
   const run = sarif.runs[0];
   assert.equal(run.tool.driver.name, 'KASAUTI');
-  assert.equal(run.tool.driver.rules.length, 12);
+  assert.equal(run.tool.driver.rules.length, RULES.length);   // v2.0: 12 CQ + 26 KP rules
   assert.ok(run.results.length > 5);
   // Rule references must resolve, and locations must be 1-based.
   for (const r of run.results) {

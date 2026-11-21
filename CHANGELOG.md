@@ -1,5 +1,22 @@
 # Change Log
 
+## 2.0.0 — 21 November 2026 — "Parakh"
+
+A 360° audit for AI-written code, suggested by Mr. Udhay Ranjan (Dean, CS & IT, AISECT University), folded into KASAUTI instead of a new extension.
+
+### Added
+- **26 audit rules KP101–KP405** (performance, security, AI-risk, simplification) for Python, JavaScript, TypeScript/TSX and Java, computed on the existing parse tree; hard-coded secret detection in every language (values masked).
+- **Slopsquatting guard:** imports checked against requirements/pyproject/Pipfile/package.json (KP301); optional PyPI/npm lookup for non-existent (KP302) and brand-new (KP303) packages.
+- **Prove Complexity** (Python, JavaScript): measures running time at growing n in a separate process and fits O(1)…O(2ⁿ), with a growth chart.
+- **Fix with AI (Verified):** bring your own model (Ollama, LM Studio, OpenAI, Anthropic, NVIDIA NIM/Nemotron, OpenRouter, Groq, custom, VS Code models). Five deterministic checks, retry with reasons, diff + proof panel, explicit Apply. AI model scoreboard.
+- **MCP server** (`dist/mcp.js`) with five tools for agent harnesses; stable install path across updates.
+- Overview: Performance, Security and AI-risk debt bars. Rule pages with before → after examples. `kasauti-disable` comments accept KP ids.
+- KP watermark (Kanak Prabhakar) on the proof panel and README.
+
+### Changed
+- Untrusted workspaces: analysis still works; running code is disabled (`untrustedWorkspaces: limited`).
+- Engine cache version 2.0.0: the first scan after updating re-analyses every file once.
+
 ## 0.2.1 — 12 September 2026
 
 Both fixes came from the first run in a real editor.

@@ -49,8 +49,8 @@ export function parseDirectives(text: string, startLine: number): Suppression[] 
     const m = DIRECTIVE.exec(lines[i]);
     if (!m) continue;
     const scope: SuppressScope = m[1] === '-file' ? 'file' : m[1] === '-next-line' ? 'nextLine' : 'line';
-    // Rule ids: CQ001 style only. Anything else in the tail is prose and ignored.
-    const rules = (m[2] ?? '').toUpperCase().match(/CQ\d{3}/g) ?? [];
+    // Rule ids: CQ001 / KP101 style only (v2.0 adds KP). Anything else in the tail is prose and ignored.
+    const rules = (m[2] ?? '').toUpperCase().match(/(?:CQ|KP)\d{3}/g) ?? [];
     out.push({ scope, line: startLine + i, rules });
   }
   return out;

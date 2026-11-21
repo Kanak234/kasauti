@@ -35,6 +35,7 @@ import { EMPTY_CONFIG, mergeThresholds, ProjectConfig, thresholdSources } from '
 import { parsePackageJsonConfig, parseProjectConfig, SAMPLE_CONFIG } from './config/projectConfig';
 import { OverviewView, PyramidPanel, WebviewHost } from './views/webviews';
 import { CancelledError, WorkerPool } from './workerPool';
+import { Parakh, snippetPath } from './views/parakh';
 
 const SCANNED_KEY = 'kasauti.scannedOnce';
 /** URI schemes we analyze. 'untitled' = unsaved new files. */
@@ -61,6 +62,8 @@ export class Controller implements vscode.Disposable, WebviewHost {
   private readonly history: History;
   /** v0.2.0 F5: thresholds the repo asked for, merged under explicit settings. */
   private project: ProjectConfig = EMPTY_CONFIG;
+  /** v2.0: 360° audit host side — deps check, Prove, AI fixes, MCP. */
+  private readonly parakh: Parakh;
   /** The last real text editor. See onDidChangeActiveTextEditor for why. */
   private lastDoc: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document;
 
@@ -138,6 +141,13 @@ export class Controller implements vscode.Disposable, WebviewHost {
       this.currentFile.refresh();
     }));
 
+    // v2.0: created after the store/pool exist; it only needs these two plus a log.
+    this.parakh = new Parakh(ctx, {
+      store: this.store,
+      analyzeSnippet: (languageKey, text) => this.pool.analyze({ languageKey, path: snippetPath(languageKey), text }, 'high'),
+      log: (l) => this.log.appendLine(l),
+    });
+    this.subs.push(this.parakh);
     this.registerCommands();
     this.registerEditorEvents();
     this.subs.push(vscode.workspace.onDidChangeConfiguration((e) => { if (e.affectsConfiguration('kasauti')) this.onConfig(); }));
@@ -287,6 +297,9 @@ export class Controller implements vscode.Disposable, WebviewHost {
       }
       if (this.latest.get(key) !== gen) return;      // a newer edit superseded this
       this.store.set(key, relPath, a, inWorkspace, hash);
+      // v2.0: imports vs. manifests (slopsquatting guard). Host-side because it
+      // needs the project's manifest files; it never blocks the analysis.
+      void this.parakh.afterAnalyze(uri, languageKey, text, inWorkspace);
     } catch (e) {
       if (e instanceof CancelledError) return;
       this.log.appendLine(`Failed to analyze ${relPath}: ${(e as Error).message}`);
@@ -505,6 +518,7 @@ export class Controller implements vscode.Disposable, WebviewHost {
    * SETTINGS
    * ==================================================================== */
   private onConfig(): void {
+    this.parakh.onConfig();                 // v2.0: kasauti.audit.enabled
     const old = this.cfg;
     this.cfg = readConfig();
     this.store.updateSettings(this.effectiveThresholds(), this.cfg.includeTier2InScore);

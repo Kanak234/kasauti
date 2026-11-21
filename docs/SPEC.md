@@ -605,3 +605,108 @@ nobody asked it to judge.
   seen in a running editor.
 - macOS and Windows. Linux only.
 
+
+---
+
+# PART H — v2.0 "Parakh" addendum (21 Nov 2026): PRD · TRD · Decisions
+
+## H1. Why v2 exists
+
+Kanak's HOD (Mr. Udhay Ranjan) suggested a 360° auditing tool for code written
+by AI: find bugs and loopholes, shorten code where it is safely shorter, cut
+time/space complexity, and suggest alternatives with explanations (Punarnava
+style). Instead of a new extension (forbidden by the 2026-09-15 scope rule),
+the idea is folded into KASAUTI — an existing extension — under the Combine
+Gate: KASAUTI (quality) + PyraSec concepts (security) + Punarnava-style
+explanations in one place.
+
+**Improvement bar (gaps in existing tools, stated concretely):**
+1. SonarQube's AI Code Assurance exists, but only in commercial editions, and
+   it gates projects; it does not give a per-function Big-O estimate.
+2. Linters report cyclomatic/cognitive complexity, not growth order (O(n²)).
+3. AI fix suggestions (any vendor) are not *proven*: nobody shows that the
+   output stayed identical and the code actually got faster.
+4. Slopsquatting (AI-hallucinated package names) is not flagged inside the
+   editor at the moment the import is written.
+
+**Measurable target (benchmark, tracked in `bench/` from v2.1):** detection
+rate and false-positive rate on a labelled snippet set; verified speed-up of
+accepted fixes; per-model fix pass rate (the AI scoreboard).
+
+## H2. Decisions (supersede OD-3 and OD-4 where stated)
+
+| ID | Decision | Reason |
+|----|----------|--------|
+| OD-10 | Security, performance, AI-risk and simplification rules join the engine as `KP1xx`–`KP4xx`. Supersedes OD-3. | Combine Gate; HOD's 360° brief. |
+| OD-11 | The core stays deterministic. AI is an optional plugin that only **proposes**; the deterministic engine **decides**. OD-4 holds for scoring. | A verifier that trusts the model is the exact loophole being fixed. |
+| OD-12 | Bring-your-own model: any OpenAI-compatible endpoint (Ollama default, OpenAI, NVIDIA/Nemotron, OpenRouter, Groq, LM Studio, custom), Anthropic, or VS Code's built-in language models. Keys live in SecretStorage only. | Kanak's requirement (chat, 21 Nov). |
+| OD-13 | Harnesses integrate through a stdio **MCP server** (`dist/mcp.js`), not by KASAUTI driving each CLI. | One integration serves Claude Code, OpenCode, Codex, Cursor. |
+| OD-14 | Running code (Prove, verify) only in trusted workspaces, only after an explicit per-workspace consent, in a temp folder, with a timeout and a scrubbed environment; AI candidates that add security findings are never executed. It is **not** a sandbox and the docs say so. | Running untrusted AI output is the main new risk. |
+| OD-15 | Static rules: Python, JavaScript, TypeScript, Java (+ secrets in every language). Prove/equivalence: Python and JavaScript top-level functions (TypeScript would need a bundled compiler; methods need an object). *(Chosen by Claude; Kanak had not answered the language question — revisit.)* | Keeps v2 shippable; Java runtime proof needs compilation. |
+
+## H3. Functional requirements
+
+- **FR-20** Audit rules run inside the existing worker on the same parse tree;
+  findings flow through the existing store, suppressions, scoring, SARIF, CLI.
+- **FR-21** Dependency check (KP301–KP303): imports vs. stdlib, local modules
+  and manifests (requirements*.txt, pyproject.toml, Pipfile, package.json).
+  Registry lookup (PyPI/npm) is **off by default** (`kasauti.audit.checkRegistry`)
+  because it sends package names over the network.
+- **FR-22** `KASAUTI: Prove Complexity` measures a function at growing n,
+  fits O(1)…O(2ⁿ), and shows a chart.
+- **FR-23** `KASAUTI: Fix with AI (Verified)` runs propose → verify → retry
+  (max `kasauti.ai.maxAttempts`), then shows a diff and the proof; nothing is
+  applied without the user clicking **Apply**.
+- **FR-24** Verification checks: function still defined; no new security/AI-risk
+  findings; no new third-party imports; identical outputs on generated inputs;
+  not slower at the largest n.
+- **FR-25** MCP tools: `kasauti_audit_code`, `kasauti_audit_file`,
+  `kasauti_check_packages`, `kasauti_prove_complexity`, `kasauti_verify_fix`.
+  The last two execute code only when `KASAUTI_ALLOW_EXEC=1`.
+
+## H4. Edge cases
+
+Constant-bound loops (`range(3)`, `i < 4`) do not count toward the Big-O
+estimate. Methods (functions using `self`/`this`) cannot be proven in
+isolation and are refused with a reason. A provider that returns prose without
+a code block counts as a failed attempt. Import names that differ from
+distribution names (`cv2`→`opencv-python`, `sklearn`→`scikit-learn`, …) are
+mapped before the "undeclared" check. No manifest in the workspace → the
+undeclared check stays silent rather than flagging every import.
+
+## H5. Gate #21 add-ons
+
+- **Visualize:** proof chart (time vs n, fitted curve, before/after) and the new
+  Security / Performance / AI-risk bars in the Overview.
+- **Worst case:** provider down or wrong key → clear error, nothing applied;
+  model returns malicious code → static audit blocks execution; harness hangs →
+  killed at the timeout; offline → registry check skipped, everything else works.
+- **Victory:** the scoreboard of verified fixes per model becomes the public
+  benchmark in the README and the demo for the HOD.
+
+## H6. Verified in this release (21 Nov 2026)
+
+- **108 of 108 tests pass** (80 from v0.2 + 28 new): audit rules fire on their
+  shape and stay silent on look-alikes (set membership, memoized recursion,
+  abstract methods, `.pyi` stubs, HashSet.contains); secrets masked; Tier 2
+  secret scan; suppression of KP ids; curve fitter on synthetic O(n), O(n log n),
+  O(n²), O(n³), O(2ⁿ); real Python runs separate linear from quadratic;
+  exponential code killed at the timeout with points kept; equivalence catches
+  `list(set(xs))` replacing an order-preserving dedupe and accepts
+  `dict.fromkeys`; provider wire formats (OpenAI-compatible, Anthropic) and
+  error messages; full fix loop: wrong answer rejected with the reason fed back,
+  retry verified O(n²) → O(n); malicious answer blocked **before** execution;
+  hallucinated import rejected; MCP handshake/tools/exec gate over real stdio;
+  proof panel escapes model output.
+- Packaged `.vsix` (4.5 MB) unpacked and its `dist/mcp.js` exercised directly.
+
+## H7. NOT verified in this release
+
+- No real editor session: the new commands, CodeLenses, diff view, proof
+  panel and Apply edit ran only against the VS Code API stub, not in VS Code.
+- No real AI provider was called (no keys/network here); the loop was tested
+  with a scripted fake model. Ollama/OpenAI/Anthropic/NVIDIA request shapes are
+  tested, live responses are not.
+- The VS Code language-model route (`vscode-lm`) is untested.
+- Windows/macOS (Python discovery via `py`, CRLF apply) — Linux only.
+- No benchmark set yet for detection/false-positive rates (planned `bench/`).

@@ -85,6 +85,9 @@ body.overview #app { padding: 12px 14px 20px; }
 .stack i { display: block; min-width: 2px; }
 .c0 { background: #c0584f; } .c1 { background: #c98a3b; } .c2 { background: #8a7fc7; } .c3 { background: #6c8ea8; }
 body.cb .c0 { background: #d55e00; } body.cb .c1 { background: #e69f00; } body.cb .c2 { background: #cc79a7; } body.cb .c3 { background: #56b4e9; }
+/* v2.0 audit categories: performance, security, AI-risk (colour-blind set uses Okabe–Ito) */
+.c4 { background: #4f9d7a; } .c5 { background: #b8455e; } .c6 { background: #c9b14a; }
+body.cb .c4 { background: #009e73; } body.cb .c5 { background: #0072b2; } body.cb .c6 { background: #f0e442; }
 .legend { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; font-size: 12px; }
 .legend b { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
 
